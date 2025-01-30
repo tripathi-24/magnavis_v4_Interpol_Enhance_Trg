@@ -315,29 +315,31 @@ class ApplicationWindow(appBase, appForm):
 
         self._app.iren.Render()
         
-        # # To create surface of a sphere we need to use Delaunay triangulation
-        d2D = vtk.vtkDelaunay2D()
-        d2D.SetInputData( polydata ) # This generates a 3D mesh
         
-        # We need to extract the surface from the 3D mesh
-        dss = vtk.vtkDataSetSurfaceFilter()
-        dss.SetInputConnection( d2D.GetOutputPort() )
-        print('input set')
-        dss.Update()
-        
-        # Now we have our final polydata
-        # The running time of Delaunay triangulation in VTK is \(O(n\log n)\).
-        # This is because the triangulation is computed for each set and then the sets are merged along the splitting line
-        
-        dsPoly = dss.GetOutput()
-        print('output set', dsPoly)
-        sphere_mapper = vtkPolyDataMapper()
-        sphere_mapper.SetInputData(dsPoly)
-        
-        sphere_actor = vtk.vtkActor()
-        sphere_actor.SetMapper(sphere_mapper)
-        self._app.ren.AddActor(sphere_actor)
-        self._app.iren.Render()
+        use_delaunay = False # creating a 2d surface using the points - not working quite well for unordered points, as well as not working for large number of points
+        if use_delaunay:
+            # # To create surface of a sphere we need to use Delaunay triangulation
+            d2D = vtk.vtkDelaunay2D()
+            d2D.SetInputData( polydata ) # This generates a 3D mesh
+            # We need to extract the surface from the 3D mesh
+            dss = vtk.vtkDataSetSurfaceFilter()
+            dss.SetInputConnection( d2D.GetOutputPort() )
+            print('input set')
+            dss.Update()
+
+            # Now we have our final polydata
+            # The running time of Delaunay triangulation in VTK is \(O(n\log n)\).
+            # This is because the triangulation is computed for each set and then the sets are merged along the splitting line
+
+            dsPoly = dss.GetOutput()
+            print('output set', dsPoly)
+            sphere_mapper = vtkPolyDataMapper()
+            sphere_mapper.SetInputData(dsPoly)
+
+            sphere_actor = vtk.vtkActor()
+            sphere_actor.SetMapper(sphere_mapper)
+            self._app.ren.AddActor(sphere_actor)
+            self._app.iren.Render()
         
         
         
@@ -597,30 +599,28 @@ class Application(QApplication):
         self._static_ax = static_canvas.figure.subplots()
         # t = np.linspace(0, 10, 501)
         # self._static_ax.plot(t, np.tan(t), ".")
-        data_file_cities = r'data\simplemaps_worldcities_basicv1.77\worldcities.csv'
         # shapefile = r'data\India_shapefile_with_Kashmir\India_shape\india_ds.shp' #does not contain crs data
-        shapefile = r'data\india_India_Country_Boundary_MAPOG\india_India_Country_Boundary.shp' # does contain crs data, ie EPSG:4326
         
-        # Read Indian Cities population data
-        df = pd.read_csv(data_file_cities)
-        df = df[(df['country'] == 'India')]
-        print(df.head())
-        
-        # import street map
-        india_map = gpd.read_file(shapefile)
-        print(india_map.crs)
-        # designate coordinate system
-        crs = 'EPSG:4326'
-        
-        # zip x and y coordinates into single feature
-        geometry = [Point(xy) for xy in zip(df['lng'], df['lat'])]
-        # create GeoPandas dataframe
-        geo_df = gpd.GeoDataFrame(df, crs=crs, geometry = geometry)
-        
-        print(geo_df.head())
-        print(geo_df.columns)
-        print('indiamap',india_map, india_map.__class__, india_map.columns)
-        print('geometry', india_map['geometry'].to_list()[0])
+        # # Read Indian Cities population data
+        # data_file_cities = os.path.join(APP_BASE, *r'data\simplemaps_worldcities_basicv1.77\worldcities.csv'.split('\\'))
+        # df = pd.read_csv(data_file_cities)
+        # df = df[(df['country'] == 'India')]
+        # print(df.head())
+        #
+        # # import street map
+        # print(india_map.crs)
+        # # designate coordinate system
+        # crs = 'EPSG:4326'
+        #
+        # # zip x and y coordinates into single feature
+        # geometry = [Point(xy) for xy in zip(df['lng'], df['lat'])]
+        # # create GeoPandas dataframe
+        # geo_df = gpd.GeoDataFrame(df, crs=crs, geometry = geometry)
+        #
+        # print(geo_df.head())
+        # print(geo_df.columns)
+        # print('indiamap',india_map, india_map.__class__, india_map.columns)
+        # print('geometry', india_map['geometry'].to_list()[0])
         # create figure and axes, assign to subplot
         # fig, ax = plt.subplots(figsize=(15,15))
         delta = 2.0
@@ -633,7 +633,8 @@ class Application(QApplication):
         # Z2 = np.exp(-(X - 1)**2 - (Y - 1)**2)
         # Z = (Z1 - Z2) * 2
         Z = np.ones_like(X)
-        geo_mag = GeoMag(coefficients_file="wmm/WMMHR_2025.COF", high_resolution=True)
+        # geo_mag = GeoMag(coefficients_file=r"C:/Users/Admin/eclipse-workspace/magnavis/src/data/wmm/WMM_HighResolution_2025.COF", high_resolution=True) # obvious issue with module not loading absolute files, can be manually corrected though
+        geo_mag = GeoMag(coefficients_file=r"wmm/WMMHR_2025.COF", high_resolution=True)
         for idx, x_ in np.ndenumerate(x):
             for idy, y_ in np.ndenumerate(y):
                 result = geo_mag.calculate(glat=y_, glon=x_, alt=0, time=2025.25)
@@ -643,6 +644,8 @@ class Application(QApplication):
         self._static_ax.clabel(CS, fontsize=7, inline_spacing=-10)
         self._static_ax.set_title('India')
         
+        shapefile = os.path.join(APP_BASE, *r'data\india_India_Country_Boundary_MAPOG\india_India_Country_Boundary.shp'.split('\\')) # does contain crs data, ie EPSG:4326
+        india_map = gpd.read_file(shapefile)
         for poly in india_map['geometry'].to_list()[0].geoms:
             # print('poly', poly.__class__)
             x, y = poly.exterior.xy
@@ -882,7 +885,7 @@ class Application(QApplication):
         
     def load_map(self):
         # India Map
-        map_figure = r'data\india_India_Country_Boundary_MAPOG\code_generated_Figure_1_India_cropped.png'
+        map_figure = os.path.join(APP_BASE, *r'data\india_India_Country_Boundary_MAPOG\code_generated_Figure_1_India_cropped.png'.split('\\'))
         reader_map = vtk.vtkPNGReader()
         reader_map.SetFileName(map_figure)
         reader_map.Update()
