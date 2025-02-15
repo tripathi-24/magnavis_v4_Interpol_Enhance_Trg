@@ -137,6 +137,7 @@ class ApplicationWindow(appBase, appForm):
         self.setupUi(self)
         self._app = app 
         self._app._app_window = self 
+        self.model = None
         # WorkbenchHelper.application = self._app
         # WorkbenchHelper.window = self
         
@@ -149,14 +150,22 @@ class ApplicationWindow(appBase, appForm):
         #
         # self.uiGraphicsTabWidget.clear()
         # self.uiGraphicsTabWidget.addTab(self._graphicsTab, 'Visualization')
-
+        self.setTreeView()
         self.setWindowTitle(app.productName)
         # self.show()
         self.connectSlots()
     
     def connectSlots(self):
         self.actionUpload.triggered.connect(self.loadFile)
+        self.actionAdd_Time_Series.triggered.connect(self.addTimeSeries)
     
+    def addTimeSeries(self):
+        try:
+            self._app._dataSourceManager.createTimeSeriesSource()
+            self.updateTreeView()
+        except Exception as e:
+            self.log(msg='error adding time series.', error=e, level='Error')
+            
     def showCsvData(self, df_in):
         assert df_in is not None
         view = QTableView()
@@ -185,19 +194,24 @@ class ApplicationWindow(appBase, appForm):
         self.dataView = self.treeView
         self.dataView.setRootIsDecorated(False)
         self.dataView.setAlternatingRowColors(True)
-        model = self.createMailModel(self)
-        self.dataView.setModel(model)
-        source = self._app._dataSourceManager._world_list[-1]
-        self.addSource(model, source_name=source.name, source_type=source.type, source_active=source.is_active)
+        self.model = self.createMailModel(self)
+        self.dataView.setModel(self.model)
+    
+    def updateTreeView(self):
+        sources = self._app._dataSourceManager._world_list + self._app._dataSourceManager._timeseries_list
+        for source in sources:
+            if source not in self._app._dataSourceManager._added_sources:
+                self.addSource(self.model, source_name=source.name, source_type=source.type)
+                self._app._dataSourceManager._added_sources.append(source)
         
     def createMailModel(self, parent):
         model = QStandardItemModel(0, 1, parent) # 3, parent)
-        model.setHeaderData(self.SOURCE, QtCore.Qt.Horizontal, "Source")
+        model.setHeaderData(self.SOURCE, QtCore.Qt.Horizontal, "Sources")
         # model.setHeaderData(self.TYPE, QtCore.Qt.Horizontal, "Type")
         # model.setHeaderData(self.ACTIVE, QtCore.Qt.Horizontal, "Active")
         return model
     
-    def addSource(self, model, source_name, source_type, source_active):
+    def addSource(self, model, source_name, source_type):
         model.insertRow(0)
         model.setData(model.index(0, self.SOURCE), source_name)
         # todo - update prop view based on other information
@@ -465,7 +479,7 @@ class ApplicationWindow(appBase, appForm):
                             self._app._dataSourceManager.loadCsv(f_name) # can this happen in different thread to prevent ui freeze? probably yes - need to figure out - todo
                             self.log(f'Loaded file "{f_name}"')
                             self.showCsvData(self._app._dataSourceManager._world_list[-1].dataFrame)
-                            self.setTreeView()
+                            self.updateTreeView()
                             self.update_visualisation()
                             
                         else:
@@ -494,7 +508,14 @@ class Source(object):
     def __init__(self):
         self.name = 'Source' # automatic uniquify - todo
         self.is_active = True
-        self.type = 'undefined' 
+        self.type = 'undefined'  # 'undefined' / 'timeseries' / 'spacial'
+
+class TimeSeriesSource(object):
+    def __init__(self):
+        super(TimeSeriesSource, self).__init__()
+        self.name = 'TimeSeries - 1'  # automatic uniquify - todo
+        self.dataFrame = None
+        self.type = 'timeseries'
         
 class World(Source):
     def __init__(self):
@@ -502,6 +523,7 @@ class World(Source):
         self.name = 'World - 1'  # automatic uniquify - todo
         self.dataFrame = None
         self.filename = ''
+        self.type = 'spacial'
         
     def loadCsv(self, f_name):
         print('loading world with', f_name)
@@ -528,6 +550,8 @@ class DataSourceManager(object):
         self.updateUI()
         # List of mesh boundary surface names
         self._world_list = []
+        self._timeseries_list = []
+        self._added_sources = []
         
         self._surfacelist = []
         # List of mesh cell zone names
@@ -543,6 +567,11 @@ class DataSourceManager(object):
         if self._data_sourceTab:
             self._data_sourceTab._updatePropView()
     
+    def createTimeSeriesSource(self):
+        timeSeriesSource = TimeSeriesSource()
+        self._timeseries_list.append(timeSeriesSource)
+        
+        
 class Application(QApplication):
     def __init__(self, arg):
         super().__init__(arg)

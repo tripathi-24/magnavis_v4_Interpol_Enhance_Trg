@@ -58,9 +58,12 @@
          <layout class="QGridLayout" name="gridLayout_3">
           <item row="0" column="0">
            <widget class="QTabWidget" name="tabWidget_2">
+            <property name="currentIndex">
+             <number>0</number>
+            </property>
             <widget class="QWidget" name="tab_3">
              <attribute name="title">
-              <string>Tab 1</string>
+              <string>Spacial</string>
              </attribute>
             </widget>
             <widget class="QWidget" name="tab_4">
@@ -81,17 +84,17 @@
             </property>
             <widget class="QWidget" name="tab">
              <attribute name="title">
-              <string>Tab 1</string>
+              <string>Map</string>
              </attribute>
             </widget>
             <widget class="QWidget" name="tab_2">
              <attribute name="title">
-              <string>Tab 2</string>
+              <string>TimeSeries</string>
              </attribute>
             </widget>
             <widget class="QWidget" name="tab_5">
              <attribute name="title">
-              <string>Tab 3</string>
+              <string>Table</string>
              </attribute>
             </widget>
            </widget>
@@ -131,6 +134,7 @@
      <string>File</string>
     </property>
     <addaction name="actionUpload"/>
+    <addaction name="actionAdd_Time_Series"/>
    </widget>
    <addaction name="menuFile"/>
   </widget>
@@ -138,6 +142,11 @@
   <action name="actionUpload">
    <property name="text">
     <string>Upload</string>
+   </property>
+  </action>
+  <action name="actionAdd_Time_Series">
+   <property name="text">
+    <string>Add Time-Series</string>
    </property>
   </action>
  </widget>
