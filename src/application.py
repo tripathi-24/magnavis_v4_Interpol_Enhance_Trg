@@ -12,10 +12,10 @@ import numpy as np
 
 import vtk
 from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableView, QLabel, QSpacerItem, QSizePolicy
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableView, QLabel, QSpacerItem, QSizePolicy, QSplashScreen
 from PyQt5 import Qt, uic
-from PyQt5.QtCore import pyqtSignal, QAbstractTableModel, QModelIndex
-from PyQt5.QtGui import QStandardItemModel
+from PyQt5.QtCore import pyqtSignal, QAbstractTableModel, QModelIndex, QTimer, QDateTime
+from PyQt5.QtGui import QStandardItemModel, QPixmap
 
 
 import numpy as np
@@ -126,6 +126,20 @@ class PandasModel(QAbstractTableModel):
                 return str(self._dataframe.index[section])
 
         return None
+
+timeSerBase, timeSerForm = uic.loadUiType(os.path.join(APP_BASE, 'ui_files', 'ui_MagneticTimeSeriesWidget.ui'))
+class MagTimeSeriesWidget(timeSerBase, timeSerForm):
+    def __init__(self, app, parent=None):
+        super(timeSerBase, self).__init__(parent)
+        self.setupUi(self)
+        self.initWidget()
+    
+    def initWidget(self):
+        currentTime = QDateTime.currentDateTime()
+        self.dateTimeEdit_2.setDateTime(currentTime)
+        default_start_time = currentTime.addDays(-1)
+        self.dateTimeEdit.setDateTime(default_start_time)
+
 
 appBase, appForm = uic.loadUiType(os.path.join(APP_BASE, 'ui_files', 'ui_ApplicationWindow.ui'))
 
@@ -576,7 +590,8 @@ class Application(QApplication):
     def __init__(self, arg):
         super().__init__(arg)
         """ Application Constructor"""
-        
+        self.splash = QSplashScreen(QPixmap(os.path.join(APP_BASE, 'splashscreen_magnav.png')))
+        self.splash.show()
         self._version = "0.1" 
         self.productName = "Magnavis"
         self._appDir = os.getcwd()
@@ -603,12 +618,20 @@ class Application(QApplication):
         self.cellslist=[]
         self.world_extent = None
         self.map_extent = None
-        self.initViews()
+        
+        
+        wnd = self.initViews()
         self.load_visualization_framework()
         self.load_plot_framework() # takes noticeable time for real time computation of magnetic field over latlon grid, move this away in non-blocking thread - todo
         self.load_plot_framework_2()
         self.log(f'Session id "{self.session_id}". Application Loaded and Running', level='Info')
+        
+        QTimer.singleShot(3000, self.showAppMaximized)
     
+    def showAppMaximized(self):
+        self.appWin.showMaximized()
+        self.splash.close()
+        
     def log(self, msg, error=None, level='Info'):
         self.appWin.log(msg, error=error, level=level)
         
@@ -621,8 +644,11 @@ class Application(QApplication):
         # Ideally one would use self.addToolBar here, but it is slightly
         # incompatible between PyQt6 and other bindings, so we just add the
         # toolbar as a plain widget instead.
+        
         layout.addWidget(NavigationToolbar(static_canvas, window))
         layout.addWidget(static_canvas)
+        # verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        # layout.addItem(verticalSpacer)
 
 
         self._static_ax = static_canvas.figure.subplots()
@@ -693,6 +719,10 @@ class Application(QApplication):
         # Ideally one would use self.addToolBar here, but it is slightly
         # incompatible between PyQt6 and other bindings, so we just add the
         # toolbar as a plain widget instead.
+        
+        timeSerWidget = MagTimeSeriesWidget(self, self.appWin)
+        layout.addWidget(timeSerWidget)
+        
         layout.addWidget(NavigationToolbar(static_canvas, window))
         layout.addWidget(static_canvas)
 
@@ -701,8 +731,20 @@ class Application(QApplication):
         layout.addWidget(NavigationToolbar(dynamic_canvas, window))
 
         self._static_ax = static_canvas.figure.subplots()
+        # load usgs magnetic data
+        from data_convert_now import get_timeseries_magnetic_data
+        import matplotlib.dates as md
         t = np.linspace(0, 10, 501)
-        self._static_ax.plot(t, np.tan(t), ".")
+        y_t = np.tan(t)
+        mag_t_df = get_timeseries_magnetic_data()
+        print(mag_t_df)
+        t = mag_t_df['time_H'].tolist()
+        y_t = mag_t_df['mag_H_nT'].tolist()
+        xfmt = md.DateFormatter('%Y-%m-%d %H:%M:%S')
+        self._static_ax.xaxis.set_major_formatter(xfmt)
+        static_canvas.figure.subplots_adjust(bottom=0.3)
+        self._static_ax.tick_params(rotation=15) # xticks(rotation=25)
+        self._static_ax.plot(t, y_t, ".")
 
         self._dynamic_ax = dynamic_canvas.figure.subplots()
         # Set up a Line2D.
@@ -741,8 +783,8 @@ class Application(QApplication):
     def initViews(self):
         """Initializes the different views (aka tabs) in our application."""
         wnd = ApplicationWindow(self)
-        wnd.showMaximized()
-        # return self.wnd
+        # wnd.showMaximized()
+        return wnd
 
     def load_visualization_framework(self):
         self.frame = Qt.QFrame()

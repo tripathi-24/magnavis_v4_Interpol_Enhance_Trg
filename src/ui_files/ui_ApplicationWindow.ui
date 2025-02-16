@@ -68,7 +68,7 @@
             </widget>
             <widget class="QWidget" name="tab_4">
              <attribute name="title">
-              <string>Tab 2</string>
+              <string>Simulation</string>
              </attribute>
             </widget>
            </widget>
@@ -84,7 +84,7 @@
             </property>
             <widget class="QWidget" name="tab">
              <attribute name="title">
-              <string>Map</string>
+              <string>Table</string>
              </attribute>
             </widget>
             <widget class="QWidget" name="tab_2">
@@ -94,7 +94,7 @@
             </widget>
             <widget class="QWidget" name="tab_5">
              <attribute name="title">
-              <string>Table</string>
+              <string>Map</string>
              </attribute>
             </widget>
            </widget>
