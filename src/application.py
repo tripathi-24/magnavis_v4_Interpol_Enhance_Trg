@@ -592,6 +592,7 @@ class Application(QApplication):
         """ Application Constructor"""
         self.splash = QSplashScreen(QPixmap(os.path.join(APP_BASE, 'splashscreen_magnav.png')))
         self.splash.show()
+        self.splash.showMessage("\n    Loaded:\n    modules")
         self._version = "0.1" 
         self.productName = "Magnavis"
         self._appDir = os.getcwd()
@@ -622,8 +623,11 @@ class Application(QApplication):
         
         wnd = self.initViews()
         self.load_visualization_framework()
+        self.splash.showMessage("\n    Loaded:\n    modules\n    visualization")
         self.load_plot_framework() # takes noticeable time for real time computation of magnetic field over latlon grid, move this away in non-blocking thread - todo
+        self.splash.showMessage("\n    Loaded:\n    modules\n    visualization\n    maps")
         self.load_plot_framework_2()
+        self.splash.showMessage("\n    Loaded:\n    modules\n    visualization\n    maps\n    plots")
         self.log(f'Session id "{self.session_id}". Application Loaded and Running', level='Info')
         
         QTimer.singleShot(3000, self.showAppMaximized)
