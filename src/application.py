@@ -544,11 +544,20 @@ class ApplicationWindow(appBase, appForm):
         try:
             print(msg, error, level)
             now = str(datetime.now())
+            html_in = self.textEditLog.toHtml()
+            # print(html_in[:-24], '---')
             if level in ['Info', 'Debug']:
-                self.textEditLog.setHtml(self.textEditLog.toHtml() + f'{now} : {msg}')
+                if 'Loaded' not in html_in and msg=='Application Loaded and Running':
+                    self.textEditLog.setHtml('''<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
+                    <html><head><meta name="qrichtext" content="1" /><style type="text/css">
+                    p, li { white-space: pre-wrap; }</style></head>'''+ \
+                    f'''<body style=" font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;"><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">{now} : {msg}</p></body></html>''')
+                    return
+                self.textEditLog.setHtml(html_in + f'{now} : {msg}')
                 # store in file as well for the session
             if level in ['Error'] or error!= None:
-                self.textEditLog.setHtml(self.textEditLog.toHtml() + f'{now} : {msg}. Detailed error:<br> {str(error)}')
+                self.textEditLog.setHtml(html_in + f'{now} : {msg}. Detailed error:<br> {str(error)}')
+            # print('-->', self.textEditLog.toHtml())
         except Exception as e:
             print('error while logging:', e)
 
@@ -662,7 +671,8 @@ class Application(QApplication):
         self.splash.showMessage("\n    Loaded:\n    modules\n    visualization\n    maps")
         self.load_plot_framework_2()
         self.splash.showMessage("\n    Loaded:\n    modules\n    visualization\n    maps\n    plots")
-        self.log(f'Session id "{self.session_id}". Application Loaded and Running', level='Info')
+        self.log(f'Application Loaded and Running', level='Info')
+        self.log(f'Session id "{self.session_id}"')
         
         QTimer.singleShot(3000, self.showAppMaximized)
     

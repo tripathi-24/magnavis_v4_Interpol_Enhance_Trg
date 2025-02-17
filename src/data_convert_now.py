@@ -33,7 +33,11 @@ def download_mag_data_file(start_time=None, end_time = None, hours=None):
     url = f'https://geomag.usgs.gov/ws/algorithms/filter/?elements=H&format=json&id=BRW&type=adjusted&starttime={start_time}&endtime={end_time}&input_sampling_period=1&output_sampling_period=1'
     # print(url)
     r = requests.get(url)
-    data_dict = r.json()
+    try:
+        data_dict = r.json()
+    except Exception as e:
+        print('could not fetch data')
+        return
 
     with open(os.path.join(folder, filename), 'w') as fp:
         json.dump(data_dict, fp)
