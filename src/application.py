@@ -31,6 +31,7 @@ from vtkmodules.vtkRenderingCore import (
 from vtkmodules.vtkInteractionWidgets import vtkOrientationMarkerWidget
 from vtkmodules.vtkRenderingAnnotation import vtkAxesActor, vtkCubeAxesActor
 
+import matplotlib.dates as md
 from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.backends.backend_qtagg import \
     NavigationToolbar2QT as NavigationToolbar
@@ -48,7 +49,10 @@ import uuid
 from pickle import NONE
 from PyQt5.uic.Compiler.qtproxies import QtWidgets
 
+from data_convert_now import get_timeseries_magnetic_data
+
 APP_BASE = os.path.dirname(__file__)
+
 # print(APP_BASE)
 
 colors = vtkNamedColors()
@@ -131,14 +135,43 @@ timeSerBase, timeSerForm = uic.loadUiType(os.path.join(APP_BASE, 'ui_files', 'ui
 class MagTimeSeriesWidget(timeSerBase, timeSerForm):
     def __init__(self, app, parent=None):
         super(timeSerBase, self).__init__(parent)
+        self.app = app
         self.setupUi(self)
         self.initWidget()
     
+    def timerRefreshEvent(self):
+        mag_t_df = get_timeseries_magnetic_data()
+        # print(mag_t_df)
+        t = mag_t_df['time_H'].tolist()
+        y_t = mag_t_df['mag_H_nT'].tolist()
+        xfmt = md.DateFormatter('%Y-%m-%d %H:%M:%S')
+        self.app._static_ax.clear()
+        print('plot cleared...')
+        self.app._static_ax.xaxis.set_major_formatter(xfmt)
+        # self.app.self.magetic_time_ser_canvas.figure.subplots_adjust(bottom=0.3)
+        # self.app._static_ax.tick_params(rotation=15) # xticks(rotation=25)
+        self.app._static_ax.plot(t, y_t, ".")
+        print('plot updated...')
+        
     def initWidget(self):
         currentTime = QDateTime.currentDateTime()
         self.dateTimeEdit_2.setDateTime(currentTime)
         default_start_time = currentTime.addDays(-1)
         self.dateTimeEdit.setDateTime(default_start_time)
+        refresh_rate_option = self.comboBox_3.currentText()
+        refresh_rate = None
+        if '10 sec' in refresh_rate_option:
+            refresh_rate = 10
+        elif '1 min' in refresh_rate_option:
+            refresh_rate = 60
+        elif '5 min' in refresh_rate_option:
+            refresh_rate = 300
+        
+        # if refresh_rate:
+        #     self.timerRefresh = QtCore.QTimer()
+        #     self.timerRefresh.timeout.connect(self.timerRefreshEvent)
+        #     self.timerRefresh.start(1000*refresh_rate)
+        #     print('refresh timer on')
 
 
 appBase, appForm = uic.loadUiType(os.path.join(APP_BASE, 'ui_files', 'ui_ApplicationWindow.ui'))
@@ -715,70 +748,97 @@ class Application(QApplication):
         # plt.show()
         
     def load_plot_framework_2(self):
-        window = self.appWin
-        layout = Qt.QVBoxLayout(window)
-        window.tab_2.setLayout(layout)
-
-        static_canvas = FigureCanvas(Figure(figsize=(5, 3)))
-        # Ideally one would use self.addToolBar here, but it is slightly
-        # incompatible between PyQt6 and other bindings, so we just add the
-        # toolbar as a plain widget instead.
-        
-        timeSerWidget = MagTimeSeriesWidget(self, self.appWin)
-        layout.addWidget(timeSerWidget)
-        
-        layout.addWidget(NavigationToolbar(static_canvas, window))
-        layout.addWidget(static_canvas)
-
-        dynamic_canvas = FigureCanvas(Figure(figsize=(5, 3)))
-        layout.addWidget(dynamic_canvas)
-        layout.addWidget(NavigationToolbar(dynamic_canvas, window))
-
-        self._static_ax = static_canvas.figure.subplots()
-        # load usgs magnetic data
-        from data_convert_now import get_timeseries_magnetic_data
-        import matplotlib.dates as md
-        t = np.linspace(0, 10, 501)
-        y_t = np.tan(t)
-        mag_t_df = get_timeseries_magnetic_data()
-        print(mag_t_df)
-        t = mag_t_df['time_H'].tolist()
-        y_t = mag_t_df['mag_H_nT'].tolist()
-        xfmt = md.DateFormatter('%Y-%m-%d %H:%M:%S')
-        self._static_ax.xaxis.set_major_formatter(xfmt)
-        static_canvas.figure.subplots_adjust(bottom=0.3)
-        self._static_ax.tick_params(rotation=15) # xticks(rotation=25)
-        self._static_ax.plot(t, y_t, ".")
-
-        self._dynamic_ax = dynamic_canvas.figure.subplots()
-        # Set up a Line2D.
-        self.xdata = np.linspace(0, 10, 101)
-        self._update_ydata()
-        self._line, = self._dynamic_ax.plot(self.xdata, self.ydata)
-        # The below two timers must be attributes of self, so that the garbage
-        # collector won't clean them after we finish with __init__...
-
-        # The data retrieval may be fast as possible (Using QRunnable could be
-        # even faster).
-        self.data_timer = dynamic_canvas.new_timer(1)
-        self.data_timer.add_callback(self._update_ydata)
-        self.data_timer.start()
-        # Drawing at 50Hz should be fast enough for the GUI to feel smooth, and
-        # not too fast for the GUI to be overloaded with events that need to be
-        # processed while the GUI element is changed.
-        self.drawing_timer = dynamic_canvas.new_timer(20)
-        self.drawing_timer.add_callback(self._update_canvas)
-        self.drawing_timer.start()
+        try:
+            window = self.appWin
+            layout = Qt.QVBoxLayout(window)
+            window.tab_2.setLayout(layout)
     
-    def _update_ydata(self):
+            static_canvas = FigureCanvas(Figure(figsize=(5, 3)))
+            # Ideally one would use self.addToolBar here, but it is slightly
+            # incompatible between PyQt6 and other bindings, so we just add the
+            # toolbar as a plain widget instead.
+            
+            timeSerWidget = MagTimeSeriesWidget(self, self.appWin)
+            layout.addWidget(timeSerWidget)
+            
+            layout.addWidget(NavigationToolbar(static_canvas, window))
+            layout.addWidget(static_canvas)
+    
+            dynamic_canvas = FigureCanvas(Figure(figsize=(5, 3)))
+            layout.addWidget(dynamic_canvas)
+            layout.addWidget(NavigationToolbar(dynamic_canvas, window))
+    
+            self._static_ax = static_canvas.figure.subplots()
+            # load usgs magnetic data
+            
+            # t = np.linspace(0, 10, 501)
+            # y_t = np.tan(t)
+            mag_t_df = get_timeseries_magnetic_data()
+            # print(mag_t_df)
+            self.x_t = mag_t_df['time_H'].tolist()
+            self.y_mag_t = mag_t_df['mag_H_nT'].tolist()
+            # xfmt = md.DateFormatter('%Y-%m-%d %H:%M:%S')
+            # self._static_ax.xaxis.set_major_formatter(xfmt)
+            # static_canvas.figure.subplots_adjust(bottom=0.3)
+            # self._static_ax.tick_params(rotation=15) # xticks(rotation=25)
+            self._static_ax.plot(self.x_t, self.y_mag_t, ".")
+    
+            self._dynamic_ax = dynamic_canvas.figure.subplots()
+            # Set up a Line2D.
+            # self.xdata = np.linspace(0, 10, 101)
+            # self.xdata = x_t
+            self._update_xydata()
+            # self._line, = self._dynamic_ax.plot(self.xdata, self.ydata)
+            self._line, = self._dynamic_ax.plot(self.x_t, self.y_mag_t)
+            self._line_new = None
+            self.new_x_t = []
+            self.new_y_mag_t = []
+            # The below two timers must be attributes of self, so that the garbage
+            # collector won't clean them after we finish with __init__...
+    
+            # The data retrieval may be fast as possible (Using QRunnable could be
+            # even faster).
+            self.data_timer = dynamic_canvas.new_timer(1000*5) # update data every 5 sec
+            self.data_timer.add_callback(self._update_xydata)
+            self.data_timer.start()
+            # Drawing at 5 Hz should be fast enough for the GUI to feel smooth, and
+            # not too fast for the GUI to be overloaded with events that need to be
+            # processed while the GUI element is changed.
+            self.drawing_timer = dynamic_canvas.new_timer(200)
+            self.drawing_timer.add_callback(self._update_canvas)
+            self.drawing_timer.start()
+            self.magetic_time_ser_canvas = static_canvas
+        except Exception as e:
+            self.log('Error loading plot framework', error=e)
+    
+    def _update_xydata(self):
         # Shift the sinusoid as a function of time.
-        self.ydata = np.sin(self.xdata + time.time())
+        # self.ydata = np.sin(self.xdata + time.time())
+        
+        # update logic:
+        if self.x_t:
+            mag_t_df = get_timeseries_magnetic_data(start_time=self.x_t[-1])
+        else:
+            mag_t_df = get_timeseries_magnetic_data(start_time=self.x_t[-1])
+        new_x_t = mag_t_df['time_H'].tolist()
+        new_y_mag_t = mag_t_df['mag_H_nT'].tolist()
+        if new_x_t and new_y_mag_t and len(new_x_t)>1 and len(new_y_mag_t)>1:
+            self.new_x_t = self.new_x_t + new_x_t
+            self.new_y_mag_t = self.new_y_mag_t + new_y_mag_t
+            print('new data found, update graph..', new_x_t, 'and', new_y_mag_t)
+        else:
+            print('no new data')
 
     def _update_canvas(self):
-        self._line.set_data(self.xdata, self.ydata)
-        # It should be safe to use the synchronous draw() method for most drawing
-        # frequencies, but it is safer to use draw_idle().
-        self._line.figure.canvas.draw_idle()
+        if not self._line_new:
+            if self.new_x_t and self.new_y_mag_t:
+                self._line_new, = self._dynamic_ax.plot(self.new_x_t, self.new_y_mag_t, color=[0.1, 0.7, 0.2])
+        else:
+            # self._line.set_data(self.xdata, self.ydata)
+            self._line_new.set_data(self.new_x_t, self.new_y_mag_t)
+            # It should be safe to use the synchronous draw() method for most drawing
+            # frequencies, but it is safer to use draw_idle().
+            self._line_new.figure.canvas.draw_idle()
         
     @property
     def appWin(self):

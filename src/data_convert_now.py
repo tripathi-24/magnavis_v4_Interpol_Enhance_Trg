@@ -11,21 +11,28 @@ import pandas as pd
 from datetime import datetime, date, timedelta
 import json
 
-end_time = datetime.now()
-start_time = end_time - timedelta(days=1)
-end_time = end_time.strftime('%Y-%m-%dT%H:%M:%SZ')
-start_time = start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
-
-url = f'https://geomag.usgs.gov/ws/algorithms/filter/?elements=H&format=json&id=BRW&type=adjusted&starttime={start_time}&endtime={end_time}&input_sampling_period=60&output_sampling_period=60'
-print(url)
-r = requests.get(url)
-data_dict = r.json()
+# end_time = datetime.now()
+# start_time = end_time - timedelta(days=1)
+# end_time = end_time.strftime('%Y-%m-%dT%H:%M:%SZ')
+# start_time = start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 folder = r'C:\Users\Admin\eclipse-workspace\magnavis\src'
-
 filename = 'download_mag.json'
-with open(os.path.join(folder, filename), 'w') as fp:
-    json.dump(data_dict, fp)
+
+def download_mag_data_file(start_time=None, end_time = None):
+    if not end_time:
+        end_time = datetime.now()
+    if not start_time:
+        start_time = end_time - timedelta(days=1)
+    end_time = end_time.strftime('%Y-%m-%dT%H:%M:%SZ')
+    start_time = start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
+    url = f'https://geomag.usgs.gov/ws/algorithms/filter/?elements=H&format=json&id=BRW&type=adjusted&starttime={start_time}&endtime={end_time}&input_sampling_period=60&output_sampling_period=60'
+    # print(url)
+    r = requests.get(url)
+    data_dict = r.json()
+
+    with open(os.path.join(folder, filename), 'w') as fp:
+        json.dump(data_dict, fp)
 
 
 '''
@@ -33,7 +40,8 @@ returns a dataframe having timeseries of earth's magnetic field
 source: https://geomag.usgs.gov/plots/
 downloaded_fileformat: json
 '''
-def get_timeseries_magnetic_data(last_n_samples=None):
+def get_timeseries_magnetic_data(last_n_samples=None, start_time=None, end_time=None):
+    download_mag_data_file(start_time, end_time)
     remove_na=True
     files = [filename]
     
@@ -45,7 +53,7 @@ def get_timeseries_magnetic_data(last_n_samples=None):
         with open(full_fname, 'r') as ff:
             data = json.load(ff)
             orientation = data['metadata']['intermagnet']['reported_orientation']
-            print(data['metadata']['intermagnet']['reported_orientation']) #data['reported_orientation'], data['times'])
+            print('orientation', data['metadata']['intermagnet']['reported_orientation']) #data['reported_orientation'], data['times'])
             times_str = data['times']
             # print(len(times_str))
             times = [datetime.fromisoformat(t[:-1] + '+00:00') for t in times_str]
