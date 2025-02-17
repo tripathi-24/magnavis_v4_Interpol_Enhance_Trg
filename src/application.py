@@ -182,6 +182,7 @@ class ApplicationWindow(appBase, appForm):
     def __init__(self, app, parent = None):
         super(appBase, self).__init__(parent)
         self.setupUi(self)
+        # self.tab_2.setMinimumHeight(550)
         self._app = app 
         self._app._app_window = self 
         self.model = None
@@ -223,14 +224,14 @@ class ApplicationWindow(appBase, appForm):
         df_head = df_in.head()
         model = PandasModel(df_head)
         view.setModel(model)
-        layout = Qt.QVBoxLayout(self)
+        layout = Qt.QVBoxLayout()
         self.tab.setLayout(layout)
         df_count = len(df_in.index)
         head_count = len(df_head.index)
         line_ht = 20
         nTableHeight = min(df_count, head_count) * line_ht + 100
-        view.setMinimumHeight(nTableHeight);
-        view.setMaximumHeight(nTableHeight);
+        view.setMinimumHeight(nTableHeight)
+        view.setMaximumHeight(nTableHeight)
         layout.addWidget(view)
         verticalSpacer = QSpacerItem(120, 140, QSizePolicy.Minimum, QSizePolicy.Expanding)
         if head_count < df_count: #(as in most of the cases)
@@ -674,10 +675,11 @@ class Application(QApplication):
         
     def load_plot_framework(self):
         window = self.appWin
-        layout = Qt.QVBoxLayout(window)
+        layout = Qt.QVBoxLayout()
         window.tab_5.setLayout(layout)
 
         static_canvas = FigureCanvas(Figure(figsize=(1, 1)))
+        # static_canvas.setMinimumHeight(500)
         # Ideally one would use self.addToolBar here, but it is slightly
         # incompatible between PyQt6 and other bindings, so we just add the
         # toolbar as a plain widget instead.
@@ -752,9 +754,10 @@ class Application(QApplication):
             self.new_x_t = []
             self.new_y_mag_t = []
             window = self.appWin
-            layout = Qt.QVBoxLayout(window)
+            layout = Qt.QVBoxLayout()
             window.tab_2.setLayout(layout)
-    
+            
+            # print(window.tab_2, window.tab_2.__class__)
             static_canvas = FigureCanvas(Figure(figsize=(5, 3)))
             # Ideally one would use self.addToolBar here, but it is slightly
             # incompatible between PyQt6 and other bindings, so we just add the
@@ -862,7 +865,7 @@ class Application(QApplication):
     def load_visualization_framework(self):
         self.frame = Qt.QFrame()
         window = self.appWin
-        self.vl = Qt.QVBoxLayout(window)
+        self.vl = Qt.QVBoxLayout()
         window.tab_3.setLayout(self.vl)
         self.vtkWidget = QVTKRenderWindowInteractor(self.frame)
         self.vl.addWidget(self.vtkWidget)
