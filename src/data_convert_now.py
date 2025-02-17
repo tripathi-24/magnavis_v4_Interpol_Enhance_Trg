@@ -16,7 +16,8 @@ import json
 # end_time = end_time.strftime('%Y-%m-%dT%H:%M:%SZ')
 # start_time = start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
 
-folder = r'C:\Users\Admin\eclipse-workspace\magnavis\src'
+APP_BASE = os.path.dirname(__file__)
+folder = APP_BASE # r'C:\Users\Admin\eclipse-workspace\magnavis\src'
 filename = 'download_mag.json'
 
 def download_mag_data_file(start_time=None, end_time = None, hours=None):
