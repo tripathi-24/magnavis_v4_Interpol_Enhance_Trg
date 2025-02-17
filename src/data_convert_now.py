@@ -10,17 +10,31 @@ import requests
 import pandas as pd
 from datetime import datetime, date, timedelta, timezone
 import json
+from urllib3.util import Retry
+from requests import Session
+from requests.adapters import HTTPAdapter
+
+# import aiohttp
+# import asyncio
+# import time
 
 # end_time = datetime.now()
 # start_time = end_time - timedelta(days=1)
 # end_time = end_time.strftime('%Y-%m-%dT%H:%M:%SZ')
 # start_time = start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
 
-APP_BASE = os.path.dirname(__file__)
-folder = APP_BASE # r'C:\Users\Admin\eclipse-workspace\magnavis\src'
-filename = 'download_mag.json'
+# async def fetch_data(session, url):
+#     print(f"Starting task: {url}")
+#     async with session.get(url) as response:
+#         await asyncio.sleep(1)  # Simulating a delay
+#         data = await response.json()
+#         print(f"Completed task: {url}")
+#         return data
 
-def download_mag_data_file(start_time=None, end_time = None, hours=None):
+def download_mag_data_file(session_id, start_time=None, end_time = None, hours=None):
+    APP_BASE = os.path.dirname(__file__)
+    folder = APP_BASE # r'C:\Users\Admin\eclipse-workspace\magnavis\src'
+    filename = 'download_mag.json'
     if not end_time:
         end_time = datetime.now(timezone.utc)
     if not start_time:
@@ -31,14 +45,29 @@ def download_mag_data_file(start_time=None, end_time = None, hours=None):
     end_time = end_time.strftime('%Y-%m-%dT%H:%M:%SZ')
     start_time = start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
     url = f'https://geomag.usgs.gov/ws/algorithms/filter/?elements=H&format=json&id=BRW&type=adjusted&starttime={start_time}&endtime={end_time}&input_sampling_period=1&output_sampling_period=1'
-    # print(url)
-    r = requests.get(url)
+    print(url)
+    s = Session()
+    retries = Retry(
+        total=3,
+        backoff_factor=0.1,
+        status_forcelist=[502, 503, 504],
+        allowed_methods={'GET'},
+    )
+    s.mount('https://', HTTPAdapter(max_retries=retries))
+    r = s.get(url, timeout=10)
+    # r = requests.get(url)
     try:
+        # print('request txt, status', r.text, r.status_code)
         data_dict = r.json()
+        print('data fetched')
     except Exception as e:
-        print('could not fetch data')
+        print('could not fetch data', r.status_code)
         return
 
+    if session_id:
+        folder = os.path.join(folder, session_id)
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
     with open(os.path.join(folder, filename), 'w') as fp:
         json.dump(data_dict, fp)
 
@@ -48,8 +77,13 @@ returns a dataframe having timeseries of earth's magnetic field
 source: https://geomag.usgs.gov/plots/
 downloaded_fileformat: json
 '''
-def get_timeseries_magnetic_data(last_n_samples=None, start_time=None, end_time=None, hours=None):
-    download_mag_data_file(start_time, end_time, hours)
+def get_timeseries_magnetic_data(session_id=None, last_n_samples=None, start_time=None, end_time=None, hours=None):
+    download_mag_data_file(session_id, start_time, end_time, hours)
+    APP_BASE = os.path.dirname(__file__)
+    folder = APP_BASE # r'C:\Users\Admin\eclipse-workspace\magnavis\src'
+    filename = 'download_mag.json'
+    if session_id:
+        folder = os.path.join(folder, session_id)
     remove_na=True
     files = [filename]
     

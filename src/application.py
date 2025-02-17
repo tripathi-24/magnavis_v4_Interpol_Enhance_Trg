@@ -6,6 +6,7 @@ Created on Jan 6, 2025
 
 import sys, os
 import time
+import logging
 from datetime import datetime, date
 
 import numpy as np
@@ -14,7 +15,7 @@ import vtk
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableView, QLabel, QSpacerItem, QSizePolicy, QSplashScreen
 from PyQt5 import Qt, uic
-from PyQt5.QtCore import pyqtSignal, QAbstractTableModel, QModelIndex, QTimer, QDateTime
+from PyQt5.QtCore import pyqtSignal, QAbstractTableModel, QModelIndex, QTimer, QDateTime, QMutex, QObject, QThread
 from PyQt5.QtGui import QStandardItemModel, QPixmap
 
 
@@ -73,8 +74,31 @@ def getFilePath(title):
     f = QFileDialog.getOpenFileName(qfd, title, path, f_type)
     return f
 
+api_df = pd.DataFrame()
+api_df_new = pd.DataFrame()
+mutex = QMutex()
 
 
+class SessionDataManager(QObject):
+    finished = pyqtSignal()
+    updatedData = pyqtSignal()
+
+    def update_api_df(self, session_id, hours=None, start_time=None, new=False):
+        logging.info(f'session {session_id} want to fetch new data')
+        global api_df
+        global api_df_new
+        mutex.lock()
+        try:
+            if new:
+                api_df_new = get_timeseries_magnetic_data(session_id, hours=hours, start_time=start_time)
+            else:
+                api_df = get_timeseries_magnetic_data(session_id, hours=hours, start_time=start_time)
+            logging.info('data fetched from api in non blocking mode')
+        except Exception as e:
+            logging.error('issue fetching api data')
+        self.updatedData.emit()
+        mutex.unlock()
+        self.finished.emit()
 
 class PandasModel(QAbstractTableModel):
     """A model to interface a Qt view with pandas dataframe """
@@ -182,6 +206,8 @@ class ApplicationWindow(appBase, appForm):
     def __init__(self, app, parent = None):
         super(appBase, self).__init__(parent)
         self.setupUi(self)
+        self.threads = []
+        self.framework_2_loaded = False
         # self.tab_2.setMinimumHeight(550)
         self._app = app 
         self._app._app_window = self 
@@ -207,6 +233,32 @@ class ApplicationWindow(appBase, appForm):
         self.actionUpload.triggered.connect(self.loadFile)
         self.actionAdd_Time_Series.triggered.connect(self.addTimeSeries)
     
+    def createThread(self, session_id, hours, start_time, new):
+        thread = QThread()
+        worker = SessionDataManager()
+        worker.moveToThread(thread)
+        thread.started.connect(lambda: worker.update_api_df(session_id, hours, start_time, new))
+        worker.updatedData.connect(self.updateData)
+        worker.finished.connect(thread.quit)
+        worker.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+        return thread
+    
+    def updateData(self):
+        # self.log('data updated')
+        if not self.framework_2_loaded and len(api_df)>0:
+            self._app.load_plot_framework_2()
+            self.framework_2_loaded = True
+        else:
+            self._app._update_xydata(force=True)
+    
+    def startThreads(self, hours, start_time, new):
+        self.threads.clear()
+        self.threads = [self.createThread(self._app.session_id, hours, start_time, new)]
+        for thread in self.threads:
+            print('------<<<<  started thread <<<')
+            thread.start()
+
     def addTimeSeries(self):
         try:
             self._app._dataSourceManager.createTimeSeriesSource()
@@ -660,6 +712,11 @@ class Application(QApplication):
         self._contour=None
         self.surfaceslist=[]
         self.cellslist=[]
+
+        self.x_t = []
+        self.y_mag_t = []
+        self.new_x_t = []
+        self.new_y_mag_t = []
         self.world_extent = None
         self.map_extent = None
         
@@ -669,7 +726,8 @@ class Application(QApplication):
         self.splash.showMessage("\n    Loaded:\n    modules\n    visualization")
         self.load_plot_framework() # takes noticeable time for real time computation of magnetic field over latlon grid, move this away in non-blocking thread - todo
         self.splash.showMessage("\n    Loaded:\n    modules\n    visualization\n    maps")
-        self.load_plot_framework_2()
+        # self.load_plot_framework_2()
+        self.appWin.startThreads(hours=1, start_time=None, new=False)
         self.splash.showMessage("\n    Loaded:\n    modules\n    visualization\n    maps\n    plots")
         self.log(f'Application Loaded and Running', level='Info')
         self.log(f'Session id "{self.session_id}"')
@@ -761,8 +819,6 @@ class Application(QApplication):
         
     def load_plot_framework_2(self):
         try:
-            self.new_x_t = []
-            self.new_y_mag_t = []
             window = self.appWin
             layout = Qt.QVBoxLayout()
             window.tab_2.setLayout(layout)
@@ -788,7 +844,9 @@ class Application(QApplication):
             
             # t = np.linspace(0, 10, 501)
             # y_t = np.tan(t)
-            mag_t_df = get_timeseries_magnetic_data(hours=1)
+            
+            mag_t_df = api_df #get_timeseries_magnetic_data(hours=1)
+            # print('assuming api_df is full', api_df)
             # print(mag_t_df)
             self.x_t = mag_t_df['time_H'].tolist()
             self.y_mag_t = mag_t_df['mag_H_nT'].tolist()
@@ -802,7 +860,7 @@ class Application(QApplication):
             # Set up a Line2D.
             # self.xdata = np.linspace(0, 10, 101)
             # self.xdata = x_t
-            self._update_xydata()
+            # self._update_xydata(force=True)
             # self._line, = self._dynamic_ax.plot(self.xdata, self.ydata)
             self._line, = self._dynamic_ax.plot(self.x_t, self.y_mag_t)
             self._line_new = None
@@ -811,7 +869,7 @@ class Application(QApplication):
     
             # The data retrieval may be fast as possible (Using QRunnable could be
             # even faster).
-            self.data_timer = dynamic_canvas.new_timer(1000*10) # update data every 10 sec
+            self.data_timer = dynamic_canvas.new_timer(1000*20) # update data every 20 sec
             self.data_timer.add_callback(self._update_xydata)
             self.data_timer.start()
             # Drawing at 5 Hz should be fast enough for the GUI to feel smooth, and
@@ -824,28 +882,40 @@ class Application(QApplication):
         except Exception as e:
             self.log('Error loading plot framework', error=e)
     
-    def _update_xydata(self):
+    def _update_xydata(self, force = False):
         # Shift the sinusoid as a function of time.
         # self.ydata = np.sin(self.xdata + time.time())
         
         # update logic:
         if self.new_x_t:
-            mag_t_df = get_timeseries_magnetic_data(start_time=self.new_x_t[-1])
+            # mag_t_df = #get_timeseries_magnetic_data(start_time=self.new_x_t[-1])
+            start_time=self.new_x_t[-1]
         elif self.x_t:
-            mag_t_df = get_timeseries_magnetic_data(start_time=self.x_t[-1])
-        new_x_t = mag_t_df['time_H'].tolist()
-        new_y_mag_t = mag_t_df['mag_H_nT'].tolist()
-        if new_x_t and new_y_mag_t and len(new_x_t)>1 and len(new_y_mag_t)>1:
-            self.new_x_t = self.new_x_t + new_x_t[1:]
-            self.new_y_mag_t = self.new_y_mag_t + new_y_mag_t[1:]
-            # print('new data found, update graph..', new_x_t, 'and', new_y_mag_t)
-        # else:
-        #     print('no new data')
+            # mag_t_df = #get_timeseries_magnetic_data(start_time=self.x_t[-1])
+            start_time=self.x_t[-1]
+        
+        if not force:
+            self.appWin.startThreads(hours=None, start_time=start_time, new=True)
+            print('after starting thread..')
+        else:
+            mag_t_df = api_df_new
+            new_x_t = mag_t_df['time_H'].tolist()
+            new_y_mag_t = mag_t_df['mag_H_nT'].tolist()
+            if new_x_t and new_y_mag_t and len(new_x_t)>1 and len(new_y_mag_t)>1:
+                print('got new data', new_x_t[1:])
+                self.new_x_t = self.new_x_t + new_x_t[1:]
+                self.new_y_mag_t = self.new_y_mag_t + new_y_mag_t[1:]
+                # self._update_canvas()
+                # print('new data found, update graph..', new_x_t, 'and', new_y_mag_t)
+            # else:
+            #     print('no new data')
 
     def _update_canvas(self):
+        # print('updating canvas..')
         if not self._line_new:
             if self.new_x_t and self.new_y_mag_t:
                 self._line_new, = self._dynamic_ax.plot(self.new_x_t, self.new_y_mag_t, color=[0.1, 0.7, 0.2])
+                # print('green line created')
         else:
             # self._line.set_data(self.xdata, self.ydata)
             self._line_new.set_data(self.new_x_t, self.new_y_mag_t)
@@ -861,6 +931,7 @@ class Application(QApplication):
             self._static_ax.set_xlim(self.x_t[0] - 0.05*_xrange, self.new_x_t[-1] + 0.05*_xrange)
             self._static_ax.set_ylim(_ymin - 0.05*_yrange, _ymax + 0.05*_yrange)
             self._static_line.figure.canvas.draw_idle()
+            # print('canvas updated')
         
     @property
     def appWin(self):
