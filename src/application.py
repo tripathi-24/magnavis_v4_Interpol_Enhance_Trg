@@ -837,11 +837,16 @@ class Application(QApplication):
             # self._line.set_data(self.xdata, self.ydata)
             self._line_new.set_data(self.new_x_t, self.new_y_mag_t)
             _xrange = self.new_x_t[-1]-self.x_t[0]
+            _ymax = max(max(self.new_y_mag_t), max(self.y_mag_t))
+            _ymin = min(min(self.new_y_mag_t), min(self.y_mag_t))
+            _yrange = _ymax - _ymin
             self._dynamic_ax.set_xlim(self.x_t[0] - 0.05*_xrange, self.new_x_t[-1] + 0.05*_xrange)
+            self._dynamic_ax.set_ylim(_ymin - 0.05*_yrange, _ymax + 0.05*_yrange)
             # It should be safe to use the synchronous draw() method for most drawing
             # frequencies, but it is safer to use draw_idle().
             self._line_new.figure.canvas.draw_idle()
             self._static_ax.set_xlim(self.x_t[0] - 0.05*_xrange, self.new_x_t[-1] + 0.05*_xrange)
+            self._static_ax.set_ylim(_ymin - 0.05*_yrange, _ymax + 0.05*_yrange)
             self._static_line.figure.canvas.draw_idle()
         
     @property
