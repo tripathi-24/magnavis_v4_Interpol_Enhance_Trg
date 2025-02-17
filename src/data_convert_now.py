@@ -8,7 +8,7 @@ import os
 import json
 import requests
 import pandas as pd
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 import json
 
 # end_time = datetime.now()
@@ -19,14 +19,17 @@ import json
 folder = r'C:\Users\Admin\eclipse-workspace\magnavis\src'
 filename = 'download_mag.json'
 
-def download_mag_data_file(start_time=None, end_time = None):
+def download_mag_data_file(start_time=None, end_time = None, hours=None):
     if not end_time:
-        end_time = datetime.now()
+        end_time = datetime.now(timezone.utc)
     if not start_time:
-        start_time = end_time - timedelta(days=1)
+        if not hours:
+            start_time = end_time - timedelta(days=1)
+        else:
+            start_time = end_time - timedelta(hours=hours)
     end_time = end_time.strftime('%Y-%m-%dT%H:%M:%SZ')
     start_time = start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
-    url = f'https://geomag.usgs.gov/ws/algorithms/filter/?elements=H&format=json&id=BRW&type=adjusted&starttime={start_time}&endtime={end_time}&input_sampling_period=60&output_sampling_period=60'
+    url = f'https://geomag.usgs.gov/ws/algorithms/filter/?elements=H&format=json&id=BRW&type=adjusted&starttime={start_time}&endtime={end_time}&input_sampling_period=1&output_sampling_period=1'
     # print(url)
     r = requests.get(url)
     data_dict = r.json()
@@ -40,8 +43,8 @@ returns a dataframe having timeseries of earth's magnetic field
 source: https://geomag.usgs.gov/plots/
 downloaded_fileformat: json
 '''
-def get_timeseries_magnetic_data(last_n_samples=None, start_time=None, end_time=None):
-    download_mag_data_file(start_time, end_time)
+def get_timeseries_magnetic_data(last_n_samples=None, start_time=None, end_time=None, hours=None):
+    download_mag_data_file(start_time, end_time, hours)
     remove_na=True
     files = [filename]
     
@@ -53,7 +56,7 @@ def get_timeseries_magnetic_data(last_n_samples=None, start_time=None, end_time=
         with open(full_fname, 'r') as ff:
             data = json.load(ff)
             orientation = data['metadata']['intermagnet']['reported_orientation']
-            print('orientation', data['metadata']['intermagnet']['reported_orientation']) #data['reported_orientation'], data['times'])
+            # print('orientation', data['metadata']['intermagnet']['reported_orientation']) #data['reported_orientation'], data['times'])
             times_str = data['times']
             # print(len(times_str))
             times = [datetime.fromisoformat(t[:-1] + '+00:00') for t in times_str]
@@ -74,7 +77,7 @@ def get_timeseries_magnetic_data(last_n_samples=None, start_time=None, end_time=
 
 
 if __name__ == '__main__':
-    df = get_timeseries_magnetic_data(last_n_samples=10)
+    df = get_timeseries_magnetic_data(hours=1) #last_n_samples=10)
     print(df) # datetime, float (field in nT) (NaN supported)
     now = datetime.now().strftime('%Y%m%dT%H%M%S')
     df.astype(str).to_excel(f'magnetic_time_ser_{now}.xlsx', index=False)

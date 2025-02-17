@@ -749,6 +749,8 @@ class Application(QApplication):
         
     def load_plot_framework_2(self):
         try:
+            self.new_x_t = []
+            self.new_y_mag_t = []
             window = self.appWin
             layout = Qt.QVBoxLayout(window)
             window.tab_2.setLayout(layout)
@@ -773,7 +775,7 @@ class Application(QApplication):
             
             # t = np.linspace(0, 10, 501)
             # y_t = np.tan(t)
-            mag_t_df = get_timeseries_magnetic_data()
+            mag_t_df = get_timeseries_magnetic_data(hours=1)
             # print(mag_t_df)
             self.x_t = mag_t_df['time_H'].tolist()
             self.y_mag_t = mag_t_df['mag_H_nT'].tolist()
@@ -781,7 +783,7 @@ class Application(QApplication):
             # self._static_ax.xaxis.set_major_formatter(xfmt)
             # static_canvas.figure.subplots_adjust(bottom=0.3)
             # self._static_ax.tick_params(rotation=15) # xticks(rotation=25)
-            self._static_ax.plot(self.x_t, self.y_mag_t, ".")
+            self._static_line, = self._static_ax.plot(self.x_t, self.y_mag_t, ".")
     
             self._dynamic_ax = dynamic_canvas.figure.subplots()
             # Set up a Line2D.
@@ -791,14 +793,12 @@ class Application(QApplication):
             # self._line, = self._dynamic_ax.plot(self.xdata, self.ydata)
             self._line, = self._dynamic_ax.plot(self.x_t, self.y_mag_t)
             self._line_new = None
-            self.new_x_t = []
-            self.new_y_mag_t = []
             # The below two timers must be attributes of self, so that the garbage
             # collector won't clean them after we finish with __init__...
     
             # The data retrieval may be fast as possible (Using QRunnable could be
             # even faster).
-            self.data_timer = dynamic_canvas.new_timer(1000*5) # update data every 5 sec
+            self.data_timer = dynamic_canvas.new_timer(1000*10) # update data every 10 sec
             self.data_timer.add_callback(self._update_xydata)
             self.data_timer.start()
             # Drawing at 5 Hz should be fast enough for the GUI to feel smooth, and
@@ -816,18 +816,18 @@ class Application(QApplication):
         # self.ydata = np.sin(self.xdata + time.time())
         
         # update logic:
-        if self.x_t:
-            mag_t_df = get_timeseries_magnetic_data(start_time=self.x_t[-1])
-        else:
+        if self.new_x_t:
+            mag_t_df = get_timeseries_magnetic_data(start_time=self.new_x_t[-1])
+        elif self.x_t:
             mag_t_df = get_timeseries_magnetic_data(start_time=self.x_t[-1])
         new_x_t = mag_t_df['time_H'].tolist()
         new_y_mag_t = mag_t_df['mag_H_nT'].tolist()
         if new_x_t and new_y_mag_t and len(new_x_t)>1 and len(new_y_mag_t)>1:
-            self.new_x_t = self.new_x_t + new_x_t
-            self.new_y_mag_t = self.new_y_mag_t + new_y_mag_t
-            print('new data found, update graph..', new_x_t, 'and', new_y_mag_t)
-        else:
-            print('no new data')
+            self.new_x_t = self.new_x_t + new_x_t[1:]
+            self.new_y_mag_t = self.new_y_mag_t + new_y_mag_t[1:]
+            # print('new data found, update graph..', new_x_t, 'and', new_y_mag_t)
+        # else:
+        #     print('no new data')
 
     def _update_canvas(self):
         if not self._line_new:
@@ -836,9 +836,13 @@ class Application(QApplication):
         else:
             # self._line.set_data(self.xdata, self.ydata)
             self._line_new.set_data(self.new_x_t, self.new_y_mag_t)
+            _xrange = self.new_x_t[-1]-self.x_t[0]
+            self._dynamic_ax.set_xlim(self.x_t[0] - 0.05*_xrange, self.new_x_t[-1] + 0.05*_xrange)
             # It should be safe to use the synchronous draw() method for most drawing
             # frequencies, but it is safer to use draw_idle().
             self._line_new.figure.canvas.draw_idle()
+            self._static_ax.set_xlim(self.x_t[0] - 0.05*_xrange, self.new_x_t[-1] + 0.05*_xrange)
+            self._static_line.figure.canvas.draw_idle()
         
     @property
     def appWin(self):
