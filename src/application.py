@@ -835,7 +835,7 @@ class Application(QApplication):
             layout = timeSerWidget.verticalLayout_3 # 
             timeSerWidget.scrollArea.setWidgetResizable(True)
             timeSerWidget.scrollArea.setMinimumHeight(500)
-            timeSerWidget.scrollArea.setMinimumWidth(600)
+            timeSerWidget.scrollArea.setMinimumWidth(550)
             layout.addWidget(NavigationToolbar(static_canvas, window))
             layout.addWidget(static_canvas)
     

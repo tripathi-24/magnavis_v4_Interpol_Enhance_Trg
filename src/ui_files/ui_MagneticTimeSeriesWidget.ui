@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>979</width>
-    <height>679</height>
+    <width>637</width>
+    <height>434</height>
    </rect>
   </property>
   <property name="maximumSize">
@@ -30,8 +30,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>959</width>
-        <height>659</height>
+        <width>600</width>
+        <height>424</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_3">
@@ -110,30 +110,6 @@
            </property>
           </widget>
          </item>
-         <item row="0" column="3">
-          <widget class="QComboBox" name="comboBox_3">
-           <item>
-            <property name="text">
-             <string>Every 20 sec</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Every 1 min</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Every 5 min</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Never</string>
-            </property>
-           </item>
-          </widget>
-         </item>
          <item row="2" column="2">
           <widget class="QCheckBox" name="checkBox">
            <property name="text">
@@ -171,6 +147,56 @@
            </property>
           </widget>
          </item>
+         <item row="3" column="3">
+          <widget class="QLabel" name="label_6">
+           <property name="text">
+            <string>Prediction</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="4">
+          <widget class="QComboBox" name="comboBox_4">
+           <item>
+            <property name="text">
+             <string>None</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Last Point</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AI model 1</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item row="0" column="3" colspan="2">
+          <widget class="QComboBox" name="comboBox_3">
+           <item>
+            <property name="text">
+             <string>Every 20 sec</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Every 1 min</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Every 5 min</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Never</string>
+            </property>
+           </item>
+          </widget>
+         </item>
         </layout>
        </item>
        <item row="1" column="0">
@@ -189,8 +215,8 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>939</width>
-            <height>533</height>
+            <width>580</width>
+            <height>298</height>
            </rect>
           </property>
           <layout class="QGridLayout" name="gridLayout_2">
