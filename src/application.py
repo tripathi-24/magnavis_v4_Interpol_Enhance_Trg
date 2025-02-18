@@ -184,7 +184,7 @@ class MagTimeSeriesWidget(timeSerBase, timeSerForm):
         self.dateTimeEdit.setDateTime(default_start_time)
         refresh_rate_option = self.comboBox_3.currentText()
         refresh_rate = None
-        if '10 sec' in refresh_rate_option:
+        if '20 sec' in refresh_rate_option:
             refresh_rate = 10
         elif '1 min' in refresh_rate_option:
             refresh_rate = 60
@@ -719,7 +719,7 @@ class Application(QApplication):
         self.new_y_mag_t = []
         self.world_extent = None
         self.map_extent = None
-        
+        self.needs_update_lims = False
         
         wnd = self.initViews()
         self.load_visualization_framework()
@@ -820,8 +820,6 @@ class Application(QApplication):
     def load_plot_framework_2(self):
         try:
             window = self.appWin
-            layout = Qt.QVBoxLayout()
-            window.tab_2.setLayout(layout)
             
             # print(window.tab_2, window.tab_2.__class__)
             static_canvas = FigureCanvas(Figure(figsize=(5, 3)))
@@ -830,8 +828,12 @@ class Application(QApplication):
             # toolbar as a plain widget instead.
             
             timeSerWidget = MagTimeSeriesWidget(self, self.appWin)
-            layout.addWidget(timeSerWidget)
+            layout_outer = Qt.QVBoxLayout()
+            window.tab_2.setLayout(layout_outer)
+            layout_outer.addWidget(timeSerWidget)
             
+            layout = timeSerWidget.verticalLayout_3 # 
+            # timeSerWidget.scrollArea
             layout.addWidget(NavigationToolbar(static_canvas, window))
             layout.addWidget(static_canvas)
     
@@ -905,6 +907,7 @@ class Application(QApplication):
                 print('got new data', new_x_t[1:])
                 self.new_x_t = self.new_x_t + new_x_t[1:]
                 self.new_y_mag_t = self.new_y_mag_t + new_y_mag_t[1:]
+                self.needs_update_lims = True
                 # self._update_canvas()
                 # print('new data found, update graph..', new_x_t, 'and', new_y_mag_t)
             # else:
@@ -919,17 +922,21 @@ class Application(QApplication):
         else:
             # self._line.set_data(self.xdata, self.ydata)
             self._line_new.set_data(self.new_x_t, self.new_y_mag_t)
-            _xrange = self.new_x_t[-1]-self.x_t[0]
-            _ymax = max(max(self.new_y_mag_t), max(self.y_mag_t))
-            _ymin = min(min(self.new_y_mag_t), min(self.y_mag_t))
-            _yrange = _ymax - _ymin
-            self._dynamic_ax.set_xlim(self.x_t[0] - 0.05*_xrange, self.new_x_t[-1] + 0.05*_xrange)
-            self._dynamic_ax.set_ylim(_ymin - 0.05*_yrange, _ymax + 0.05*_yrange)
+            
+            if self.needs_update_lims:
+                _xrange = self.new_x_t[-1]-self.x_t[0]
+                _ymax = max(max(self.new_y_mag_t), max(self.y_mag_t))
+                _ymin = min(min(self.new_y_mag_t), min(self.y_mag_t))
+                _yrange = _ymax - _ymin
+                self._dynamic_ax.set_xlim(self.x_t[0] - 0.05*_xrange, self.new_x_t[-1] + 0.05*_xrange)
+                self._dynamic_ax.set_ylim(_ymin - 0.05*_yrange, _ymax + 0.05*_yrange)
+                self._static_ax.set_xlim(self.x_t[0] - 0.05*_xrange, self.new_x_t[-1] + 0.05*_xrange)
+                self._static_ax.set_ylim(_ymin - 0.05*_yrange, _ymax + 0.05*_yrange)
+                self.needs_update_lims = False
             # It should be safe to use the synchronous draw() method for most drawing
             # frequencies, but it is safer to use draw_idle().
+            self._line.figure.canvas.draw_idle()
             self._line_new.figure.canvas.draw_idle()
-            self._static_ax.set_xlim(self.x_t[0] - 0.05*_xrange, self.new_x_t[-1] + 0.05*_xrange)
-            self._static_ax.set_ylim(_ymin - 0.05*_yrange, _ymax + 0.05*_yrange)
             self._static_line.figure.canvas.draw_idle()
             # print('canvas updated')
         
