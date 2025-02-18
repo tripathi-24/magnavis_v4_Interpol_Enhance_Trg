@@ -65,7 +65,7 @@ def download_mag_data_file(session_id, start_time=None, end_time = None, hours=N
         return
 
     if session_id:
-        folder = os.path.join(folder, session_id)
+        folder = os.path.join(folder, 'sessions', session_id)
         if not os.path.isdir(folder):
             os.makedirs(folder)
     with open(os.path.join(folder, filename), 'w') as fp:
@@ -83,7 +83,7 @@ def get_timeseries_magnetic_data(session_id=None, last_n_samples=None, start_tim
     folder = APP_BASE # r'C:\Users\Admin\eclipse-workspace\magnavis\src'
     filename = 'download_mag.json'
     if session_id:
-        folder = os.path.join(folder, session_id)
+        folder = os.path.join(folder, 'sessions', session_id)
     remove_na=True
     files = [filename]
     

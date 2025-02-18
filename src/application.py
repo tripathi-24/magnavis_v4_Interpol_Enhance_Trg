@@ -95,7 +95,7 @@ class SessionDataManager(QObject):
                 api_df = get_timeseries_magnetic_data(session_id, hours=hours, start_time=start_time)
             logging.info('data fetched from api in non blocking mode')
         except Exception as e:
-            logging.error('issue fetching api data')
+            logging.error('issue fetching api data', str(e))
         self.updatedData.emit()
         mutex.unlock()
         self.finished.emit()

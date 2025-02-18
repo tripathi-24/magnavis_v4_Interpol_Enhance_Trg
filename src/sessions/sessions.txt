@@ -1,0 +1,2 @@
+this folder contains folders with name as session id for a running session
+these folders can be deleted from time to time or by the software automatically.
