@@ -717,6 +717,16 @@ class Application(QApplication):
         self.y_mag_t = []
         self.new_x_t = []
         self.new_y_mag_t = []
+        
+        def simple_predict(t_inp_series, mag_inp_series):
+            t_delta = t_inp_series[-1] - t_inp_series[-2]
+            t_out_series = [t_inp_series[-1]+t_delta]
+            mag_out_series = [mag_inp_series[-1]]
+            return t_out_series, mag_out_series
+
+        self.predictions = {
+                'simple': simple_predict,
+            }
         self.world_extent = None
         self.map_extent = None
         self.needs_update_lims = False
