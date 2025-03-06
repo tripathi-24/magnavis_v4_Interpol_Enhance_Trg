@@ -24,7 +24,11 @@ set up and activate virtual environment (optional)
 pip install -r requirements_feb_2025.txt
 
 ### 3. run the application
+using relative file name
 ```
 python src\application.py
 ```
+or absolute filename
+~~~~
+python c:/Users/DELL/Desktop/Projects/quantum/magnavis/src/application.py
 ~~~~
