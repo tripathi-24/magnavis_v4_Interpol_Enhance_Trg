@@ -1,4 +1,4 @@
-# Python Application
+# Python Application, Magnavis
 
 This repository contains a Python application developed by lab members of Prof. Saikat Ghosh, Department of Physics, IIT Kanpur. The application is designed to provide insights to data analytics and visualisation in context of magnetic fields, anamoly fields and other advanced magnetic simulations.
 
