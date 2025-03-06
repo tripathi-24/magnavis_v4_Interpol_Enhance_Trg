@@ -26,7 +26,7 @@ pip install -r requirements_feb_2025.txt
 ### 3. run the application
 using relative file name
 ```
-python src\application.py
+python src/application.py
 ```
 or absolute filename
 ~~~~
