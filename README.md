@@ -24,5 +24,7 @@ set up and activate virtual environment (optional)
 pip install -r requirements_feb_2025.txt
 
 ### 3. run the application
+```
 python src\application.py
+```
 ~~~~
