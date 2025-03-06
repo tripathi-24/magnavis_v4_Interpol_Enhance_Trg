@@ -20,8 +20,10 @@ git clone https://gitlab.com/joy.b/magnavis.git
 cd magnavis
 ```
 ### 2. Install python modules
-set up and activate virtual environment (optional)
+set up and activate virtual environment (optional), and install the libraries:
+~~~~
 pip install -r requirements_feb_2025.txt
+~~~~
 
 ### 3. run the application
 using relative file name
