@@ -16,8 +16,8 @@ Follow these steps to set up and run the application on your local machine:
 ### 1. Clone the Repository
 Clone this repository to your local machine using:
 ```bash
-git clone <repository-url>
-cd <repository-name>
+git clone https://gitlab.com/joy.b/magnavis.git
+cd magnavis
 ```
 ### 2. Install python modules
 set up and activate virtual environment (optional)
