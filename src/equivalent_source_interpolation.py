@@ -8,6 +8,9 @@ import pandas as pd
 import pygmt
 import pyproj
 import verde as vd
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.colors import TwoSlopeNorm
 
 import harmonica as hm
 
@@ -64,47 +67,96 @@ fig_width = fig_height * (e - w) / (n - s)
 fig_ratio = (n - s) / (fig_height / 100)
 fig_proj = f"x1:{fig_ratio}"
 
-# Plot original magnetic anomaly and the gridded and upward-continued version
-fig = pygmt.Figure()
+# Create figure with two subplots side by side
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5), 
+                             gridspec_kw={'wspace': 0.4})
 
-title = "Observed magnetic anomaly data"
-
-# Make colormap of data
-# Get the 95 percentile of the maximum absolute value between the original and
-# gridded data so we can use the same color scale for both plots and have 0
-# centered at the white color.
+# Calculate maximum absolute value for consistent color scaling
 maxabs = vd.maxabs(data.total_field_anomaly_nt, grid.magnetic_anomaly.values) * 0.95
-pygmt.makecpt(
-    cmap="vik",
-    series=(-maxabs, maxabs),
-    background=True,
-)
 
-with pygmt.config(FONT_TITLE="12p"):
-    fig.plot(
-        projection=fig_proj,
-        region=xy_region,
-        frame=[f"WSne+t{title}", "xa10000", "ya10000"],
-        x=easting,
-        y=northing,
-        fill=data.total_field_anomaly_nt,
-        style="c0.1c",
-        cmap=True,
-    )
+# Create colormap centered at 0 (similar to PyGMT's vik cmap)
+cmap = plt.get_cmap('RdBu_r')  # RdBu_r is similar to vik
+norm = TwoSlopeNorm(vmin=-maxabs, vcenter=0, vmax=maxabs)
 
-fig.colorbar(cmap=True, frame=["a400f100", "x+lnT"])
+# First plot - Observed magnetic anomaly data
+scatter = ax1.scatter(easting, northing, 
+                     c=data.total_field_anomaly_nt,
+                     s=10,  # size similar to 0.1c
+                     cmap=cmap,
+                     norm=norm)
+ax1.set_title("Observed magnetic anomaly data", fontsize=12)
+ax1.set_xlabel('Easting')
+ax1.set_ylabel('Northing')
+# Set tick marks similar to xa10000, ya10000
+ax1.set_xticks(np.arange(min(easting), max(easting), 10000))
+ax1.set_yticks(np.arange(min(northing), max(northing), 10000))
+# Add colorbar
+plt.colorbar(scatter, ax=ax1, label='nT')
 
-fig.shift_origin(xshift=fig_width + 1)
+# Second plot - Gridded and upward-continued
+# Convert grid to arrays for plotting
+x = grid.easting.values
+y = grid.northing.values
+X, Y = np.meshgrid(x, y)
+Z = grid.magnetic_anomaly.values
 
-title = "Gridded and upward-continued"
+im = ax2.pcolormesh(X, Y, Z, 
+                   cmap=cmap,
+                   norm=norm)
+ax2.set_title("Gridded and upward-continued", fontsize=12)
+ax2.set_xlabel('Easting')
+ax2.set_ylabel('Northing')
+# Set tick marks
+ax2.set_xticks(np.arange(min(x), max(x), 10000))
+ax2.set_yticks(np.arange(min(y), max(y), 10000))
+# Add colorbar
+plt.colorbar(im, ax=ax2, label='nT')
 
-with pygmt.config(FONT_TITLE="12p"):
-    fig.grdimage(
-        frame=[f"ESnw+t{title}", "xa10000", "ya10000"],
-        grid=grid.magnetic_anomaly,
-        cmap=True,
-    )
+# Adjust layout and display
+plt.tight_layout()
+plt.show()
 
-fig.colorbar(cmap=True, frame=["a400f100", "x+lnT"])
+# # Plot original magnetic anomaly and the gridded and upward-continued version
+# fig = pygmt.Figure()
 
-fig.show()
+# title = "Observed magnetic anomaly data"
+
+# # Make colormap of data
+# # Get the 95 percentile of the maximum absolute value between the original and
+# # gridded data so we can use the same color scale for both plots and have 0
+# # centered at the white color.
+# maxabs = vd.maxabs(data.total_field_anomaly_nt, grid.magnetic_anomaly.values) * 0.95
+# pygmt.makecpt(
+#     cmap="vik",
+#     series=(-maxabs, maxabs),
+#     background=True,
+# )
+
+# with pygmt.config(FONT_TITLE="12p"):
+#     fig.plot(
+#         projection=fig_proj,
+#         region=xy_region,
+#         frame=[f"WSne+t{title}", "xa10000", "ya10000"],
+#         x=easting,
+#         y=northing,
+#         fill=data.total_field_anomaly_nt,
+#         style="c0.1c",
+#         cmap=True,
+#     )
+
+# fig.colorbar(cmap=True, frame=["a400f100", "x+lnT"])
+
+# fig.shift_origin(xshift=fig_width + 1)
+
+# title = "Gridded and upward-continued"
+
+# with pygmt.config(FONT_TITLE="12p"):
+#     fig.grdimage(
+#         frame=[f"ESnw+t{title}", "xa10000", "ya10000"],
+#         grid=grid.magnetic_anomaly,
+#         cmap=True,
+#     )
+
+# fig.colorbar(cmap=True, frame=["a400f100", "x+lnT"])
+
+# fig.show()

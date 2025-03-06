@@ -51,6 +51,7 @@ from pickle import NONE
 from PyQt5.uic.Compiler.qtproxies import QtWidgets
 
 from data_convert_now import get_timeseries_magnetic_data
+# from predictor_ai import LSTMPredictor
 
 APP_BASE = os.path.dirname(__file__)
 
@@ -74,8 +75,8 @@ def getFilePath(title):
     f = QFileDialog.getOpenFileName(qfd, title, path, f_type)
     return f
 
-api_df = pd.DataFrame()
-api_df_new = pd.DataFrame()
+api_df = pd.DataFrame() #columns=['time_H', 'mag_H_nT'])
+api_df_new = pd.DataFrame() #columns=['time_H', 'mag_H_nT'])
 mutex = QMutex()
 
 
@@ -718,15 +719,23 @@ class Application(QApplication):
         self.new_x_t = []
         self.new_y_mag_t = []
         
-        def simple_predict(t_inp_series, mag_inp_series):
-            t_delta = t_inp_series[-1] - t_inp_series[-2]
-            t_out_series = [t_inp_series[-1]+t_delta]
-            mag_out_series = [mag_inp_series[-1]]
-            return t_out_series, mag_out_series
+        # class SimplePredict
+        # def predict
+        # def simple_predict(t_inp_series, mag_inp_series):
+        #     t_delta = t_inp_series[-1] - t_inp_series[-2]
+        #     t_out_series = [t_inp_series[-1]+t_delta]
+        #     mag_out_series = [mag_inp_series[-1]]
+        #     return t_out_series, mag_out_series
 
-        self.predictions = {
-                'simple': simple_predict,
-            }
+        # self.predictions = {
+        #         'simple': simple_predict,
+        #         'ai_model_1': LSTMPredictor
+        #     }
+
+        self.splash.showMessage("\n    Loaded:\n    modules\n    loading predictor..")
+        # self.predictor = LSTMPredictor(window_size=5, initial_train_points=3400,
+        #                       epochs_per_update=5, learning_rate=0.001, update_training=True)
+
         self.world_extent = None
         self.map_extent = None
         self.needs_update_lims = False
@@ -913,6 +922,7 @@ class Application(QApplication):
             print('after starting thread..')
         else:
             mag_t_df = api_df_new
+            print('head', mag_t_df.head())
             new_x_t = mag_t_df['time_H'].tolist()
             new_y_mag_t = mag_t_df['mag_H_nT'].tolist()
             if new_x_t and new_y_mag_t and len(new_x_t)>1 and len(new_y_mag_t)>1:
@@ -930,6 +940,8 @@ class Application(QApplication):
         if not self._line_new:
             if self.new_x_t and self.new_y_mag_t:
                 self._line_new, = self._dynamic_ax.plot(self.new_x_t, self.new_y_mag_t, color=[0.1, 0.7, 0.2])
+                
+                
                 # print('green line created')
         else:
             # self._line.set_data(self.xdata, self.ydata)
