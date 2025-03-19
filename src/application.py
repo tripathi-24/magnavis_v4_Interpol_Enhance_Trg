@@ -322,6 +322,10 @@ class ApplicationWindow(appBase, appForm):
     def update_visualisation(self):
         # points = vtk.vtkPoints()
         df_inp = self._app._dataSourceManager._world_list[-1].dataFrame
+        df_inp['Altitude'] = df_inp['Altitude'].interpolate(method='linear')
+        skip_factor = 10
+        df_inp = df_inp.iloc[::skip_factor].reset_index()
+        print('df count', df_inp.count())
         x, y, z, mag = df_inp['Longitude'].to_numpy(), df_inp['Latitude'].to_numpy(), df_inp['Altitude'].to_numpy(), df_inp['Mag'].to_numpy()
         num_pts = 100
         # indices = np.arange(0, num_pts, dtype=float) + 0.5

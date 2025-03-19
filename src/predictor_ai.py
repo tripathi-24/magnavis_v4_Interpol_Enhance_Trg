@@ -53,6 +53,8 @@ class LSTMPredictor:
         X_init, y_init = self.create_windowed_dataset(initial_data)
         if len(X_init) > 0:
             self.model.fit(X_init, y_init, epochs=self.epochs_per_update, verbose=0)
+        
+        # up until here
 
         predictions = []
         current_window = field_scaled[self.initial_train_points - self.window_size : self.initial_train_points]
@@ -106,6 +108,9 @@ if __name__ == "__main__":
     predictor = LSTMPredictor(window_size=5, initial_train_points=3400,
                               epochs_per_update=5, learning_rate=0.001, update_training=True)
 
+    # read from magdata
+    file = r'C:\Users\DELL\Desktop\Projects\quantum\magnavis\src\sessions\a5c67bf0-bfe8-41ff-ae75-20ee51dbc70c\download_mag.json'
+    # predictor.(train_data)
     future_times, future_predictions = predictor.forecast(timestamps, field_data, n_future=100)
 
     print("Future Timestamps:", future_times)
