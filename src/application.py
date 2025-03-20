@@ -91,7 +91,9 @@ class SessionDataManager(QObject):
         mutex.lock()
         try:
             if new:
+                # print('new ...., getting data')
                 api_df_new = get_timeseries_magnetic_data(session_id, hours=hours, start_time=start_time)
+                # print('got data', api_df_new)
             else:
                 api_df = get_timeseries_magnetic_data(session_id, hours=hours, start_time=start_time)
             logging.info('data fetched from api in non blocking mode')
@@ -756,6 +758,7 @@ class Application(QApplication):
         self.log(f'Session id "{self.session_id}"')
         
         QTimer.singleShot(3000, self.showAppMaximized)
+        self.new_predictions = False
     
     def showAppMaximized(self):
         self.appWin.showMaximized()
@@ -763,7 +766,16 @@ class Application(QApplication):
         
     def log(self, msg, error=None, level='Info'):
         self.appWin.log(msg, error=error, level=level)
-        
+
+    def _save_data(self, x_t, y_t):
+        APP_BASE = os.path.dirname(__file__)
+        folder = APP_BASE # r'C:\Users\Admin\eclipse-workspace\magnavis\src'
+        filename = 'predict_input.csv'
+        if self.session_id:
+            folder = os.path.join(folder, 'sessions', self.session_id)
+            df_save_inp = pd.DataFrame({'x': x_t, 'y': y_t})
+            df_save_inp.to_csv(os.path.join(folder, filename), index=False)
+
     def load_plot_framework(self):
         window = self.appWin
         layout = Qt.QVBoxLayout()
@@ -854,6 +866,8 @@ class Application(QApplication):
             layout_outer = Qt.QVBoxLayout()
             window.tab_2.setLayout(layout_outer)
             layout_outer.addWidget(timeSerWidget)
+            self.predict_x_t = []
+            self.predict_y_t = []
             
             layout = timeSerWidget.verticalLayout_3 # 
             timeSerWidget.scrollArea.setWidgetResizable(True)
@@ -882,7 +896,7 @@ class Application(QApplication):
             # static_canvas.figure.subplots_adjust(bottom=0.3)
             # self._static_ax.tick_params(rotation=15) # xticks(rotation=25)
             self._static_line, = self._static_ax.plot(self.x_t, self.y_mag_t, ".")
-    
+            
             self._dynamic_ax = dynamic_canvas.figure.subplots()
             # Set up a Line2D.
             # self.xdata = np.linspace(0, 10, 101)
@@ -890,6 +904,7 @@ class Application(QApplication):
             # self._update_xydata(force=True)
             # self._line, = self._dynamic_ax.plot(self.xdata, self.ydata)
             self._line, = self._dynamic_ax.plot(self.x_t, self.y_mag_t)
+            self._save_data(self.x_t, self.y_mag_t)
             self._line_new = None
             # The below two timers must be attributes of self, so that the garbage
             # collector won't clean them after we finish with __init__...
@@ -940,16 +955,16 @@ class Application(QApplication):
             #     print('no new data')
 
     def _update_canvas(self):
-        # print('updating canvas..')
+        # print('updating canvas.. with new line', self._line_new)
         if not self._line_new:
             if self.new_x_t and self.new_y_mag_t:
                 self._line_new, = self._dynamic_ax.plot(self.new_x_t, self.new_y_mag_t, color=[0.1, 0.7, 0.2])
-                
-                
-                # print('green line created')
+                print('green line created')
+                self._save_data(self.x_t + self.new_x_t, self.y_mag_t + self.new_y_mag_t)
         else:
             # self._line.set_data(self.xdata, self.ydata)
             self._line_new.set_data(self.new_x_t, self.new_y_mag_t)
+            self._save_data(self.x_t + self.new_x_t, self.y_mag_t + self.new_y_mag_t)
             
             if self.needs_update_lims:
                 _xrange = self.new_x_t[-1]-self.x_t[0]
@@ -967,6 +982,9 @@ class Application(QApplication):
             self._line_new.figure.canvas.draw_idle()
             self._static_line.figure.canvas.draw_idle()
             # print('canvas updated')
+        
+        if self.new_predictions:
+            self._new_predictions_line, = self._dynamic_ax.plot(self.predict_x_t, self.predict_y_t, color=[0.3, 0.1, 0.4])
         
     @property
     def appWin(self):

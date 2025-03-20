@@ -1,4 +1,6 @@
+import os, sys
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, LSTM
@@ -79,10 +81,10 @@ class LSTMPredictor:
 
 
         try:
-            dt_last = datetime.strptime(timestamps[-1], "%d%m%Y%H%M%S")
+            dt_last = timestamps[-1]# datetime.strptime(timestamps[-1], "%d%m%Y%H%M%S")
 
             if len(timestamps) > 1:
-                dt_second_last = datetime.strptime(timestamps[-2], "%d%m%Y%H%M%S")
+                dt_second_last = timestamps[-2] #datetime.strptime(timestamps[-2], "%d%m%Y%H%M%S")
                 time_delta = dt_last - dt_second_last
             else:
                 time_delta = timedelta(seconds=1)
@@ -93,25 +95,34 @@ class LSTMPredictor:
         for i in range(n_future):
             new_time = dt_last + (i + 1) * time_delta
 
-            future_timestamps.append(new_time.strftime("%d%m%Y%H%M%S"))
+            future_timestamps.append(new_time) #.strftime("%d%m%Y%H%M%S"))
 
         return np.array(future_timestamps), np.array(predictions)
 
 if __name__ == "__main__":
 
-    start_time = datetime.strptime("01012023000000", "%d%m%Y%H%M%S")
-    timestamps = [(start_time + timedelta(seconds=i)).strftime("%d%m%Y%H%M%S") for i in range(10000)]
+    # start_time = datetime.strptime("01012023000000", "%d%m%Y%H%M%S")
+    # timestamps = [(start_time + timedelta(seconds=i)) for i in range(10000)] #.strftime("%d%m%Y%H%M%S") for i in range(10000)]
 
-    t_numeric = np.arange(10000)
-    field_data = np.sin(0.001 * t_numeric) + 0.05 * np.random.randn(len(t_numeric))
-
-    predictor = LSTMPredictor(window_size=5, initial_train_points=3400,
-                              epochs_per_update=5, learning_rate=0.001, update_training=True)
+    # t_numeric = np.arange(10000)
+    # field_data = np.sin(0.001 * t_numeric) + 0.05 * np.random.randn(len(t_numeric))
 
     # read from magdata
-    file = r'C:\Users\DELL\Desktop\Projects\quantum\magnavis\src\sessions\a5c67bf0-bfe8-41ff-ae75-20ee51dbc70c\download_mag.json'
+    file = sys.argv[1] #r'C:\Users\DELL\Desktop\Projects\quantum\magnavis\src\sessions\c5763b7d-cd79-4bdc-a9b1-c8b8e753e9e7\predict_input.csv'
+    print('filein', file)
     # predictor.(train_data)
-    future_times, future_predictions = predictor.forecast(timestamps, field_data, n_future=100)
+    df_in = pd.read_csv(file)
 
+    predictor = LSTMPredictor(window_size=5, initial_train_points=len(df_in),
+                              epochs_per_update=5, learning_rate=0.001, update_training=True)
+
+    df_in['x'] = pd.to_datetime(df_in['x'])
+    print(df_in.head())
+    timestamps = df_in['x'].to_list()
+    field_data = df_in['y'].to_list()
+    future_times, future_predictions = predictor.forecast(timestamps, field_data, n_future=100)
+    df_out = pd.DataFrame({'x': future_times, 'y': future_predictions})
+    folder = os.path.dirname(file)
+    df_out.to_csv(os.path.join(folder, 'predict_out.csv'))
     print("Future Timestamps:", future_times)
     print("Future Magnetic Field Predictions:", future_predictions)
