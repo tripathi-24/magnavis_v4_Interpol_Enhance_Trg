@@ -1,6 +1,4 @@
-import os, sys
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, LSTM
@@ -28,7 +26,21 @@ class LSTMPredictor:
             y.append(series[i + self.window_size])
         return np.array(X), np.array(y)
 
-    def build_model(self):
+    def build_model(self, timestamps, field_data):
+        self.initial_timestamps = timestamps
+        field = np.array(field_data).reshape(-1, 1)
+
+        self.field_scaled = self.scaler.fit_transform(field)
+
+        if self.initial_train_points < self.window_size:
+            raise ValueError("initial_train_points must be >= window_size.")
+        if self.initial_train_points > len(self.field_scaled):
+            raise ValueError("initial_train_points cannot exceed total data length.")
+
+        self.initial_data = self.field_scaled[:self.initial_train_points]
+        X_init, y_init = self.create_windowed_dataset(self.initial_data)
+        if len(X_init) > 0:
+            self.model.fit(X_init, y_init, epochs=self.epochs_per_update, verbose=0)
         model = Sequential()
         model.add(LSTM(32, return_sequences=False, input_shape=(self.window_size, 1)))
         model.add(Dense(16, activation='relu'))
@@ -37,33 +49,25 @@ class LSTMPredictor:
         model.compile(optimizer=optimizer, loss='mean_squared_error')
         self.model = model
 
-    def forecast(self, timestamps, field_data, n_future):
-
-        field = np.array(field_data).reshape(-1, 1)
-
-        field_scaled = self.scaler.fit_transform(field)
-
-        if self.initial_train_points < self.window_size:
-            raise ValueError("initial_train_points must be >= window_size.")
-        if self.initial_train_points > len(field_scaled):
-            raise ValueError("initial_train_points cannot exceed total data length.")
-
-        if self.model is None:
-            self.build_model()
-
-        initial_data = field_scaled[:self.initial_train_points]
-        X_init, y_init = self.create_windowed_dataset(initial_data)
-        if len(X_init) > 0:
-            self.model.fit(X_init, y_init, epochs=self.epochs_per_update, verbose=0)
+    def forecast(self, output_timesteps):
+        # piecewise
+        # 1st piece for future
+        delta_t = (self.initial_timestamps[-1] - self.initial_timestamps[-2])
+        past_elements_time = self.initial_timestamps[-1] - output_timesteps[0]
+        if past_elements_time <= 0:
+            predictions = self.initial_train_points[-past_elements_time/(delta_t):]
+        else:
+            predictions = []
+            
+        n_future = (output_timesteps[-1] - self.initial_timestamps[-1])/delta_t
         
-        # up until here
-
-        predictions = []
-        current_window = field_scaled[self.initial_train_points - self.window_size : self.initial_train_points]
+        
+        current_window = self.field_scaled[self.initial_train_points - self.window_size : self.initial_train_points]
 
         if self.update_training:
-            training_data = initial_data.copy()
-
+            training_data = self.initial_data.copy()
+            
+        # 2st piece for future
         for i in range(n_future):
             current_window_reshaped = np.array([current_window])
             predicted_scaled = self.model.predict(current_window_reshaped, verbose=0)[0, 0]
@@ -81,10 +85,10 @@ class LSTMPredictor:
 
 
         try:
-            dt_last = timestamps[-1]# datetime.strptime(timestamps[-1], "%d%m%Y%H%M%S")
+            dt_last = datetime.strptime(timestamps[-1], "%d%m%Y%H%M%S")
 
             if len(timestamps) > 1:
-                dt_second_last = timestamps[-2] #datetime.strptime(timestamps[-2], "%d%m%Y%H%M%S")
+                dt_second_last = datetime.strptime(timestamps[-2], "%d%m%Y%H%M%S")
                 time_delta = dt_last - dt_second_last
             else:
                 time_delta = timedelta(seconds=1)
@@ -95,34 +99,24 @@ class LSTMPredictor:
         for i in range(n_future):
             new_time = dt_last + (i + 1) * time_delta
 
-            future_timestamps.append(new_time) #.strftime("%d%m%Y%H%M%S"))
+            future_timestamps.append(new_time.strftime("%d%m%Y%H%M%S"))
 
         return np.array(future_timestamps), np.array(predictions)
 
 if __name__ == "__main__":
 
-    # start_time = datetime.strptime("01012023000000", "%d%m%Y%H%M%S")
-    # timestamps = [(start_time + timedelta(seconds=i)) for i in range(10000)] #.strftime("%d%m%Y%H%M%S") for i in range(10000)]
+    start_time = datetime.strptime("01012023000000", "%d%m%Y%H%M%S")
+    timestamps = [(start_time + timedelta(seconds=i)).strftime("%d%m%Y%H%M%S") for i in range(10000)]
 
-    # t_numeric = np.arange(10000)
-    # field_data = np.sin(0.001 * t_numeric) + 0.05 * np.random.randn(len(t_numeric))
+    t_numeric = np.arange(10000)
+    field_data = np.sin(0.001 * t_numeric) + 0.05 * np.random.randn(len(t_numeric))
 
-    # read from magdata
-    file = sys.argv[1] #r'C:\Users\DELL\Desktop\Projects\quantum\magnavis\src\sessions\c5763b7d-cd79-4bdc-a9b1-c8b8e753e9e7\predict_input.csv'
-    print('filein', file)
-    # predictor.(train_data)
-    df_in = pd.read_csv(file)
+    predictor = LSTMPredictor(window_size=5, initial_train_points=3400,
+                              epochs_per_update=5, learning_rate=0.001, update_training=True)
+    
+    predictor.build_model()
+    for _ in range(10):
+        future_times, future_predictions = predictor.forecast(timestamps, field_data, n_future=100)
 
-    predictor = LSTMPredictor(window_size=15, initial_train_points=len(df_in),
-                              epochs_per_update=10, learning_rate=0.001, update_training=True)
-
-    df_in['x'] = pd.to_datetime(df_in['x'])
-    print('input head for predict', df_in.head())
-    timestamps = df_in['x'].to_list()
-    field_data = df_in['y'].to_list()
-    future_times, future_predictions = predictor.forecast(timestamps, field_data, n_future=100)
-    df_out = pd.DataFrame({'x': future_times, 'y': future_predictions})
-    folder = os.path.dirname(file)
-    df_out.to_csv(os.path.join(folder, 'predict_out.csv'), index=False)
-    # print("Future Timestamps:", future_times)
-    # print("Future Magnetic Field Predictions:", future_predictions)
+    print("Future Timestamps:", future_times)
+    print("Future Magnetic Field Predictions:", future_predictions)

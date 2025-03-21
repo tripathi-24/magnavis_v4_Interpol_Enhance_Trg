@@ -59,7 +59,7 @@ def download_mag_data_file(session_id, start_time=None, end_time = None, hours=N
     try:
         # print('request txt, status', r.text, r.status_code)
         data_dict = r.json()
-        print('data fetched')
+        # print('data fetched')
     except Exception as e:
         print('could not fetch data', r.status_code)
         return

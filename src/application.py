@@ -47,6 +47,8 @@ from shapely.geometry import Point, Polygon
 from pygeomag import GeoMag
 
 import uuid
+import subprocess
+
 from pickle import NONE
 from PyQt5.uic.Compiler.qtproxies import QtWidgets
 
@@ -699,7 +701,7 @@ class Application(QApplication):
         self.splash.showMessage("\n    Loaded:\n    modules")
         self._version = "0.1" 
         self.productName = "Magnavis"
-        self._appDir = os.getcwd()
+        self._appDir = os.getcwd() ## not really, name is slightly misleading, can we put APP_BASE?, maybe
         ## Set default area for saving default values
         self._defaultRootDir = "." + self.productName
 
@@ -710,6 +712,7 @@ class Application(QApplication):
         self.srcDir     = APP_BASE #os.path.abspath(os.path.dirname(sys.argv[0]))
         self.projectDir = "" #self.preferencesData.projectDir #os.getcwd()
         self.session_id = str(uuid.uuid4())
+        self.predictor_input_file = None
         
         ## Init Managers
         self._dataSourceManager = DataSourceManager(self)
@@ -749,6 +752,12 @@ class Application(QApplication):
         self.needs_update_lims = False
         
         wnd = self.initViews()
+        self.predict_app_started = False
+        self.predict_x_t = []
+        self.predict_y_t = []
+        self.predict_last_t_in_plot = None
+        self.prediction_process = None
+        
         self.load_visualization_framework()
         self.splash.showMessage("\n    Loaded:\n    modules\n    visualization")
         self.load_plot_framework() # takes noticeable time for real time computation of magnetic field over latlon grid, move this away in non-blocking thread - todo
@@ -760,7 +769,6 @@ class Application(QApplication):
         self.log(f'Session id "{self.session_id}"')
         
         QTimer.singleShot(3000, self.showAppMaximized)
-        self.new_predictions = False
     
     def showAppMaximized(self):
         self.appWin.showMaximized()
@@ -770,13 +778,16 @@ class Application(QApplication):
         self.appWin.log(msg, error=error, level=level)
 
     def _save_data(self, x_t, y_t):
-        APP_BASE = os.path.dirname(__file__)
         folder = APP_BASE # r'C:\Users\Admin\eclipse-workspace\magnavis\src'
         filename = 'predict_input.csv'
         if self.session_id:
             folder = os.path.join(folder, 'sessions', self.session_id)
             df_save_inp = pd.DataFrame({'x': x_t, 'y': y_t})
-            df_save_inp.to_csv(os.path.join(folder, filename), index=False)
+            inp_file = os.path.join(folder, filename)
+            df_save_inp.to_csv(inp_file, index=False)
+            if not self.predict_app_started:
+                self.start_prediction_process(inp_file)
+                self.predict_app_started = True
 
     def load_plot_framework(self):
         window = self.appWin
@@ -868,8 +879,7 @@ class Application(QApplication):
             layout_outer = Qt.QVBoxLayout()
             window.tab_2.setLayout(layout_outer)
             layout_outer.addWidget(timeSerWidget)
-            self.predict_x_t = []
-            self.predict_y_t = []
+            
             
             layout = timeSerWidget.verticalLayout_3 # 
             timeSerWidget.scrollArea.setWidgetResizable(True)
@@ -926,6 +936,17 @@ class Application(QApplication):
         except Exception as e:
             self.log('Error loading plot framework', error=e)
     
+    def start_prediction_process(self, input_file):
+        try:
+            python_exe = r'D:\Joy\Projects\Python312\python.exe' # change as per local machine of the developer. should not have space!
+            python_app_file = os.path.join(APP_BASE, 'predictor_ai.py') # each of these should not have space!!
+            command = f'{python_exe} {python_app_file} {input_file}'
+            print('starting command', command)
+            self.predictor_input_file = input_file
+            self.prediction_process = subprocess.Popen(command)
+        except Exception as e:
+            self.log('Error starting prediction process', error=e)
+    
     def _update_xydata(self, force = False):
         # Shift the sinusoid as a function of time.
         # self.ydata = np.sin(self.xdata + time.time())
@@ -943,8 +964,9 @@ class Application(QApplication):
             print('after starting thread..')
         else:
             mag_t_df = api_df_new
-            print('head', mag_t_df.head())
+            # print('head', mag_t_df.head())
             new_x_t = mag_t_df['time_H'].tolist()
+            # print('new_x_t', new_x_t)
             new_y_mag_t = mag_t_df['mag_H_nT'].tolist()
             if new_x_t and new_y_mag_t and len(new_x_t)>1 and len(new_y_mag_t)>1:
                 print('got new data', new_x_t[1:])
@@ -955,39 +977,78 @@ class Application(QApplication):
                 # print('new data found, update graph..', new_x_t, 'and', new_y_mag_t)
             # else:
             #     print('no new data')
+        self._update_predictions_data()
 
+    def _update_predictions_data(self):
+        try:
+            predict_input = self.predictor_input_file
+            predict_output_file = os.path.join(os.path.dirname(predict_input), 'predict_out.csv')
+            if os.path.exists(predict_output_file):
+                predictions = pd.read_csv(predict_output_file)
+                predictions['x'] = pd.to_datetime(predictions['x'])
+                __x = predictions['x'].to_list()
+                __y = predictions['y'].to_list()
+                if len(__x)>0:
+                    if len(self.predict_x_t)==0: # first prediction
+                        self.predict_x_t.append(__x) # list append to list (list of list)
+                        self.predict_y_t.append(__y) # list append to list (list of list)
+                        if self.prediction_process:
+                            self.prediction_process.kill()
+                            self.predict_app_started = False
+                    elif self.predict_x_t[-1][-1] < __x[0]: #new prediction confirmed
+                        self.predict_x_t.append(__x) # list append to list (list of list)
+                        self.predict_y_t.append(__y) # list append to list (list of list)
+                        if self.prediction_process:
+                            self.prediction_process.kill()
+                            self.predict_app_started = False
+                            
+        except Exception as e:
+            self.log('Error updating predictions data', error=e)
+                
+                
     def _update_canvas(self):
         # print('updating canvas.. with new line', self._line_new)
-        if not self._line_new:
-            if self.new_x_t and self.new_y_mag_t:
-                self._line_new, = self._dynamic_ax.plot(self.new_x_t, self.new_y_mag_t, color=[0.1, 0.7, 0.2])
-                print('green line created')
+        try:
+            if not self._line_new:
+                if self.new_x_t and self.new_y_mag_t:
+                    self._line_new, = self._dynamic_ax.plot(self.new_x_t, self.new_y_mag_t, color=[0.1, 0.7, 0.2])
+                    print('green line created')
+                    print('with data', self.new_x_t, self.new_y_mag_t)
+                    self._save_data(self.x_t + self.new_x_t, self.y_mag_t + self.new_y_mag_t)
+            else:
+                # self._line.set_data(self.xdata, self.ydata)
+                self._line_new.set_data(self.new_x_t, self.new_y_mag_t)
                 self._save_data(self.x_t + self.new_x_t, self.y_mag_t + self.new_y_mag_t)
-        else:
-            # self._line.set_data(self.xdata, self.ydata)
-            self._line_new.set_data(self.new_x_t, self.new_y_mag_t)
-            self._save_data(self.x_t + self.new_x_t, self.y_mag_t + self.new_y_mag_t)
+                
+                if self.needs_update_lims:
+                    _xrange = self.new_x_t[-1]-self.x_t[0]
+                    _ymax = max(max(self.new_y_mag_t), max(self.y_mag_t))
+                    _ymin = min(min(self.new_y_mag_t), min(self.y_mag_t))
+                    _yrange = _ymax - _ymin
+                    self._dynamic_ax.set_xlim(self.x_t[0] - 0.05*_xrange, self.new_x_t[-1] + 0.05*_xrange)
+                    self._dynamic_ax.set_ylim(_ymin - 0.05*_yrange, _ymax + 0.05*_yrange)
+                    self._static_ax.set_xlim(self.x_t[0] - 0.05*_xrange, self.new_x_t[-1] + 0.05*_xrange)
+                    self._static_ax.set_ylim(_ymin - 0.05*_yrange, _ymax + 0.05*_yrange)
+                    self.needs_update_lims = False
+                # It should be safe to use the synchronous draw() method for most drawing
+                # frequencies, but it is safer to use draw_idle().
+                self._line.figure.canvas.draw_idle()
+                self._line_new.figure.canvas.draw_idle()
+                self._static_line.figure.canvas.draw_idle()
+                # print('canvas updated')
             
-            if self.needs_update_lims:
-                _xrange = self.new_x_t[-1]-self.x_t[0]
-                _ymax = max(max(self.new_y_mag_t), max(self.y_mag_t))
-                _ymin = min(min(self.new_y_mag_t), min(self.y_mag_t))
-                _yrange = _ymax - _ymin
-                self._dynamic_ax.set_xlim(self.x_t[0] - 0.05*_xrange, self.new_x_t[-1] + 0.05*_xrange)
-                self._dynamic_ax.set_ylim(_ymin - 0.05*_yrange, _ymax + 0.05*_yrange)
-                self._static_ax.set_xlim(self.x_t[0] - 0.05*_xrange, self.new_x_t[-1] + 0.05*_xrange)
-                self._static_ax.set_ylim(_ymin - 0.05*_yrange, _ymax + 0.05*_yrange)
-                self.needs_update_lims = False
-            # It should be safe to use the synchronous draw() method for most drawing
-            # frequencies, but it is safer to use draw_idle().
-            self._line.figure.canvas.draw_idle()
-            self._line_new.figure.canvas.draw_idle()
-            self._static_line.figure.canvas.draw_idle()
-            # print('canvas updated')
-        
-        if self.new_predictions:
-            self._new_predictions_line, = self._dynamic_ax.plot(self.predict_x_t, self.predict_y_t, color=[0.3, 0.1, 0.4])
-        
+            if not self.predict_last_t_in_plot:
+                if self.predict_x_t:
+                    print('plotting new predict line with data', self.predict_x_t[-1], self.predict_y_t[-1])
+                    self._new_predictions_line, = self._dynamic_ax.plot(self.predict_x_t[-1], self.predict_y_t[-1], color=[0.3, 0.1, 0.4])
+                    self.predict_last_t_in_plot = self.predict_x_t[-1][-1]
+            else:
+                if self.predict_last_t_in_plot < self.predict_x_t[-1][0]:
+                    self._new_predictions_line, = self._dynamic_ax.plot(self.predict_x_t[-1], self.predict_y_t[-1], color=[0.3, 0.1, 0.4])
+                    self.predict_last_t_in_plot = self.predict_x_t[-1][-1]
+        except Exception as e:
+            self.log('Error updating canvas', error=e)
+                
     @property
     def appWin(self):
         return self._app_window
