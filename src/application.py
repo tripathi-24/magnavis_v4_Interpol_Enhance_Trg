@@ -13,11 +13,12 @@ import numpy as np
 
 import vtk
 from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableView, QLabel, QSpacerItem, QSizePolicy, QSplashScreen
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableView, QLabel, QSpacerItem, QSizePolicy, QSplashScreen, QWidget
 from PyQt5 import Qt, uic
 from PyQt5.QtCore import pyqtSignal, QAbstractTableModel, QModelIndex, QTimer, QDateTime, QMutex, QObject, QThread
-from PyQt5.QtGui import QStandardItemModel, QPixmap
-
+from PyQt5.QtGui import QStandardItemModel, QPixmap, QPalette, QColor
+from PyQt5.QtGui import QDrag, QPixmap, QPainter, QCursor
+from PyQt5.QtCore import QMimeData, Qt as CoreQt
 
 import numpy as np
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
@@ -105,6 +106,88 @@ class SessionDataManager(QObject):
         mutex.unlock()
         self.finished.emit()
 
+class Color(QWidget):
+
+    def __init__(self, color):
+        super().__init__()
+        self.setAutoFillBackground(True)
+
+        palette = self.palette()
+        palette.setColor(QPalette.Window, QColor(color))
+        self.setPalette(palette)
+
+class DraggableLabel(QLabel):
+    def mousePressEvent(self, event):
+        if event.button() == CoreQt.LeftButton:
+            self.drag_start_position = event.pos()
+
+    def mouseMoveEvent(self, event):
+        if not (event.buttons() & CoreQt.LeftButton):
+            return
+        if (event.pos() - self.drag_start_position).manhattanLength() < QApplication.startDragDistance():
+            return
+        drag = QDrag(self)
+        mimedata = QMimeData()
+        mimedata.setText(self.text())
+        drag.setMimeData(mimedata)
+        pixmap = QPixmap(self.size())
+        painter = QPainter(pixmap)
+        painter.drawPixmap(self.rect(), self.grab())
+        painter.end()
+        drag.setPixmap(pixmap)
+        drag.setHotSpot(event.pos())
+        drag.exec_(CoreQt.CopyAction | CoreQt.MoveAction)
+
+class DropLabel(QLabel):
+    def __init__(self, *args, **kwargs):
+        QLabel.__init__(self, *args, **kwargs)
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasText():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        pos = event.pos()
+        text = event.mimeData().text()
+        self.setText(text)
+        event.acceptProposedAction()
+
+
+class MapWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        label = DropLabel("drop there",self)
+        # label.setGeometry(190, 65, 100, 100)
+        # layout = QVBoxLayout()
+        label_to_drag1 = DraggableLabel("drag this 1",self)
+        # label_to_drag1.setGeometry(10, 10, 100,100)
+        label_to_drag2 = DraggableLabel("drag this 2",self)
+        
+        layout1 = Qt.QHBoxLayout()
+        layout2 = Qt.QVBoxLayout()
+        layout3 = Qt.QVBoxLayout()
+
+        layout2.addWidget(Color('red'))
+        layout2.addWidget(Color('yellow'))
+        layout2.addWidget(Color('purple'))
+        layout2.addWidget(label_to_drag1)
+        layout2.addWidget(label_to_drag2)
+
+        layout1.addLayout( layout2 )
+        layout1.addLayout( layout3 )
+
+        # layout1.addWidget(Color('green'))
+
+        layout3.addWidget(Color('orange'))
+        layout3.addWidget(Color('green'))
+        layout3.addWidget(label)
+        self.setLayout(layout1)
+        self.show()
+    
 class PandasModel(QAbstractTableModel):
     """A model to interface a Qt view with pandas dataframe """
 
@@ -326,6 +409,8 @@ class ApplicationWindow(appBase, appForm):
     def update_visualisation(self):
         # points = vtk.vtkPoints()
         df_inp = self._app._dataSourceManager._world_list[-1].dataFrame
+        cols = df_inp.columns.tolist()
+        print('df cols',cols)
         df_inp['Altitude'] = df_inp['Altitude'].interpolate(method='linear')
         skip_factor = 10
 
@@ -340,8 +425,8 @@ class ApplicationWindow(appBase, appForm):
         
         # x, y, z = np.cos(theta) * np.sin(phi), np.sin(theta) * np.sin(phi), np.cos(phi);
         minx, miny, minz = min(x), min(y), min(z)
-        x = (x-minx)*10000
-        y = (y-miny)*10000
+        x = (x-minx)*1000
+        y = (y-miny)*1000
         z = z-minz
         points = np.stack((x, y, z, mag), axis=1)
         # just keep the supported points having non NaN x, y, z
@@ -416,7 +501,7 @@ class ApplicationWindow(appBase, appForm):
         """This function sets the new set of coordinates on the canvas
         """
         n_tgt = len(coords)
-        radii, colors, indices = ApplicationWindow.sphere_prop_to_vtkarray(n_tgt, 1, 0)
+        radii, colors, indices = ApplicationWindow.sphere_prop_to_vtkarray(n_tgt, 0.01, 0)
         
         polydata = vtk.vtkPolyData()
         polydata.GetPointData().AddArray(radii)
