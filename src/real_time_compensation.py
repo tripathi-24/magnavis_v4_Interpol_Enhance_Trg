@@ -2,7 +2,7 @@ import sys
 import serial
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone # Import timezone
 import requests
 
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget,
@@ -11,8 +11,8 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget,
 from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer
 import pyqtgraph as pg
 
-WEB_API_URL = "https://www.kanopytech.com/quantum/magnavis/api/magnetic-data/"
-API_POST_INTERVAL_MS = 1000
+WEB_API_URL = "http://127.0.0.1:8000/quantum/magnavis/api/magnetic-data/"
+API_POST_INTERVAL_MS = 1000 # 1 second in milliseconds
 
 class SerialReader(QThread):
     data_received = pyqtSignal(list)
@@ -37,7 +37,7 @@ class SerialReader(QThread):
                         try:
                             values_str = line.split(',')
                             if len(values_str) == 4:
-                                t = float(values_str[0])
+                                t = float(values_str[0]) # Keep t_val for logging/plotting if needed
                                 x = float(values_str[1])
                                 y = float(values_str[2])
                                 z = float(values_str[3])
@@ -61,6 +61,8 @@ class SerialReader(QThread):
         self.wait()
 
 class MainWindow(QMainWindow):
+    api_post_result = pyqtSignal(bool, str)
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Real-time Serial Data Plotter, Logger & API Sender")
@@ -79,6 +81,8 @@ class MainWindow(QMainWindow):
         self.data_buffer = {'t': [], 'x': [], 'y': [], 'z': []}
         self.max_points = 500
         self.latest_api_data = None
+
+        self.api_post_result.connect(self.handle_api_post_result)
 
     def init_ui(self):
         serial_config_layout = QHBoxLayout()
@@ -114,6 +118,7 @@ class MainWindow(QMainWindow):
         self.main_layout.addLayout(log_config_layout)
 
         self.status_label = QLabel("Status: Idle")
+        self.status_label.setWordWrap(True)
         self.main_layout.addWidget(self.status_label)
 
     def populate_ports(self):
@@ -207,7 +212,14 @@ class MainWindow(QMainWindow):
         t_val, x_val, y_val, z_val = data
         current_time_pc = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
-        self.latest_api_data = {"timestamp": datetime.now(timezone.utc).isoformat(), "b_x": x_val, "b_y": y_val, "b_z": z_val}
+        # --- MODIFIED: New API payload format ---
+        self.latest_api_data = {
+            "timestamp": datetime.now(timezone.utc).isoformat(), # UTC timestamp
+            "b_x": x_val,
+            "b_y": y_val,
+            "b_z": z_val
+        }
+        # --- END MODIFIED ---
 
         if self.log_file:
             self.log_file.write(f"{current_time_pc},{t_val},{x_val},{y_val},{z_val}\n")
@@ -226,40 +238,44 @@ class MainWindow(QMainWindow):
         self.curve_y.setData(self.data_buffer['t'], self.data_buffer['y'])
         self.curve_z.setData(self.data_buffer['t'], self.data_buffer['z'])
 
-        # --- NEW ADDITION: Auto-range the plot after updating data ---
         self.plot_widget.autoRange()
-        # --- END NEW ADDITION ---
 
     def send_data_to_api(self):
         if self.latest_api_data is None:
             return
 
         payload = self.latest_api_data
+        # You might want to print the *new* keys in the print statement
+        print(f"Attempting to send single data point to API: timestamp={payload.get('timestamp', 'N/A')}, b_x={payload.get('b_x', 'N/A')}...")
+        threading.Thread(target=self._perform_api_post, args=(payload,)).start()
 
+    def _perform_api_post(self, payload_dict):
         try:
-            threading.Thread(target=self._perform_api_post, args=(payload,)).start()
-
-        except Exception as e:
-            print(f"Error starting API thread: {e}")
-            self.status_label.setText(f"API Thread Error: {e}")
-
-    def _perform_api_post(self, payload):
-        try:
-            response = requests.post(WEB_API_URL, json=payload, timeout=5)
+            response = requests.post(WEB_API_URL, json=payload_dict, timeout=5)
             response.raise_for_status()
-            print(f"API Post Successful: {payload} -> {response.status_code}")
+            # Update the message to reflect new keys
+            message = f"API Post Successful: Sent timestamp={payload_dict.get('timestamp', 'N/A')}. Status {response.status_code}"
+            print(message)
+            self.api_post_result.emit(True, message)
         except requests.exceptions.Timeout:
-            print(f"API Post Failed: Timeout for {payload}")
-            self.status_label.setText("API POST Timeout!")
+            message = f"API Post Failed: Timeout for point timestamp={payload_dict.get('timestamp', 'N/A')}."
+            print(message)
+            self.api_post_result.emit(False, message)
         except requests.exceptions.ConnectionError as e:
-            print(f"API Post Failed: Connection error: {e}")
-            self.status_label.setText(f"API Connection Error: {e}")
+            message = f"API Post Failed: Connection error: {e}"
+            print(message)
+            self.api_post_result.emit(False, message)
         except requests.exceptions.HTTPError as e:
-            print(f"API Post Failed: HTTP Error: {e.response.status_code} - {e.response.text}")
-            self.status_label.setText(f"API HTTP Error: {e.response.status_code}")
+            message = f"API Post Failed: HTTP Error {e.response.status_code} - {e.response.text}"
+            print(message)
+            self.api_post_result.emit(False, message)
         except Exception as e:
-            print(f"API Post Failed: An unexpected error occurred: {e}")
-            self.status_label.setText(f"Unexpected API Error: {e}")
+            message = f"API Post Failed: An unexpected error occurred: {e}"
+            print(message)
+            self.api_post_result.emit(False, message)
+
+    def handle_api_post_result(self, success, message):
+        self.status_label.setText(f"Status: {message}")
 
     def reset_plot_view(self):
         if self.data_buffer['t']:
