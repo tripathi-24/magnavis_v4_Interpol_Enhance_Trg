@@ -2,18 +2,32 @@ import sys
 import serial
 import threading
 import time
-from datetime import datetime, timezone # Import timezone
+from datetime import datetime, timezone
 import requests
+import collections # Added for deque
+import mysql.connector # Added for database
 
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget,
                              QPushButton, QHBoxLayout, QLabel, QLineEdit,
                              QComboBox, QMessageBox)
 from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer
+
 import pyqtgraph as pg
 
+# --- Global Configurations ---
 WEB_API_URL = "http://127.0.0.1:8000/quantum/magnavis/api/magnetic-data/"
 API_POST_INTERVAL_MS = 1000 # 1 second in milliseconds
 
+DB_CONFIG = {
+    'host': '208.109.66.54',
+    'user': 'magnavis',
+    'password': 'magnavis@iitk123',
+    'database': 'kts-webdb-dev',
+    'port': 3306
+}
+MAGNETIC_DATA_TABLE = "KTSWebsite_magneticdatamodel" # Confirmed table name
+
+# --- Serial Reader Thread ---
 class SerialReader(QThread):
     data_received = pyqtSignal(list)
     error_occurred = pyqtSignal(str)
@@ -37,7 +51,7 @@ class SerialReader(QThread):
                         try:
                             values_str = line.split(',')
                             if len(values_str) == 4:
-                                t = float(values_str[0]) # Keep t_val for logging/plotting if needed
+                                t = float(values_str[0])
                                 x = float(values_str[1])
                                 y = float(values_str[2])
                                 z = float(values_str[3])
@@ -49,10 +63,15 @@ class SerialReader(QThread):
                 time.sleep(0.01)
         except serial.SerialException as e:
             self.error_occurred.emit(f"Serial port error: {e}")
+            print(f"Serial port error in SerialReader: {e}")
+        except Exception as e:
+            self.error_occurred.emit(f"Unexpected error in SerialReader: {e}")
+            print(f"Unexpected error in SerialReader: {e}")
         finally:
             if self.serial_connection and self.serial_connection.is_open:
                 self.serial_connection.close()
                 print("Serial port closed.")
+            self.running = False
 
     def stop(self):
         self.running = False
@@ -60,8 +79,121 @@ class SerialReader(QThread):
             self.serial_connection.close()
         self.wait()
 
+# --- Database Writer Thread (Per-Insert Connection Strategy) ---
+import collections
+import mysql.connector
+import time # Ensure time is imported
+
+class DatabaseWriter(QThread):
+    db_status_signal = pyqtSignal(str)
+    error_occurred = pyqtSignal(str)
+
+    def __init__(self):
+        super().__init__()
+        self.running = False
+        self.data_queue = collections.deque()
+        self.batch_size = 100 # Define a batch size, or process all available.
+                              # For "last inserted till now," we'll process all available.
+
+    def run(self):
+        self.running = True
+        self.db_status_signal.emit("Database writer started (batch connections).")
+        print("DatabaseWriter thread: RUN method entered (batch connections).")
+
+        try:
+            while self.running:
+                if self.data_queue: # Only proceed if there's data to process
+                    # Collect all available data from the queue into a list
+                    data_points_to_insert = []
+                    while self.data_queue: # Pop all items currently in queue
+                        data_points_to_insert.append(self.data_queue.popleft())
+
+                    if data_points_to_insert: # Ensure the list is not empty
+                        try:
+                            print(f"DatabaseWriter thread: Processing batch of {len(data_points_to_insert)} points for insert.")
+                            self._insert_data(data_points_to_insert) # Now sends a list
+                            self.db_status_signal.emit(f"Batch of {len(data_points_to_insert)} points inserted.")
+                        except Exception as e: # Catch any errors during insert, including connection issues
+                            self.error_occurred.emit(f"DB Batch Insert/Connection Error: {e}")
+                            print(f"DatabaseWriter thread: CAUGHT ERROR during batch insert: {e}")
+                else:
+                    time.sleep(0.01) # Small sleep to prevent busy-waiting if queue is empty
+
+        except Exception as e:
+            self.error_occurred.emit(f"Critical error in DatabaseWriter thread: {e}. Stopping.")
+            print(f"DatabaseWriter thread: CRITICAL ERROR in run method: {e}")
+        finally:
+            self.db_status_signal.emit("Database writer stopped.")
+            self.running = False
+            print("DatabaseWriter thread: RUN method exiting.")
+
+    def _insert_data(self, data_points_list): # Now accepts a list of dictionaries
+        mydb = None
+        mycursor = None
+        try:
+            print(f"Attempting to connect for batch insert ({len(data_points_list)} points): {DB_CONFIG['host']}:{DB_CONFIG['port']}")
+            time.sleep(0.01) # Small delay for stability
+
+            mydb = mysql.connector.connect(
+                host=DB_CONFIG['host'],
+                user=DB_CONFIG['user'],
+                password=DB_CONFIG['password'],
+                database=DB_CONFIG['database'],
+                port=int(DB_CONFIG['port']),
+                connection_timeout=5
+            )
+            mycursor = mydb.cursor()
+            print("Connection for batch insert successful.")
+
+            sql = f"""
+            INSERT INTO {MAGNETIC_DATA_TABLE}
+            (timestamp, b_x, b_y, b_z)
+            VALUES (%s, %s, %s, %s)
+            """
+
+            # Prepare the list of tuples for executemany
+            values_to_insert = []
+            for dp in data_points_list:
+                values_to_insert.append((
+                    dp["timestamp"],
+                    dp["b_x"],
+                    dp["b_y"],
+                    dp["b_z"]
+                ))
+
+            mycursor.executemany(sql, values_to_insert) # Use executemany
+            mydb.commit()
+            print(f"Batch of {len(data_points_list)} points inserted successfully.")
+
+        except mysql.connector.Error as err:
+            raise Exception(f"MySQL Error during batch insert: {err}")
+        except Exception as e:
+            raise Exception(f"General Error during batch insert: {e}")
+        finally:
+            if mycursor:
+                mycursor.close()
+                print("Cursor closed after batch insert.")
+            if mydb and mydb.is_connected():
+                mydb.close()
+                print("Connection closed after batch insert.")
+
+    def _close_db_connection(self):
+        # This remains largely unused for the per-insert connection strategy
+        print("DatabaseWriter: _close_db_connection called (no active persistent connection).")
+        pass
+
+    def add_data_to_queue(self, data_point):
+        """Called from the main thread to add a single data point to the queue."""
+        self.data_queue.append(data_point)
+
+    def stop(self):
+        self.running = False
+        self.wait()
+
+# --- Main Window Class ---
 class MainWindow(QMainWindow):
     api_post_result = pyqtSignal(bool, str)
+    send_data_to_db_writer = pyqtSignal(dict) # New signal to send data to DB writer
 
     def __init__(self):
         super().__init__()
@@ -75,6 +207,7 @@ class MainWindow(QMainWindow):
         self.serial_reader = None
         self.log_file = None
         self.api_timer = QTimer(self)
+        self.db_writer_thread = None # Added for DatabaseWriter instance
 
         self.init_ui()
         self.init_plot()
@@ -174,6 +307,14 @@ class MainWindow(QMainWindow):
         self.serial_reader.error_occurred.connect(self.handle_error)
         self.serial_reader.start()
 
+        # --- DATABASE WRITER THREAD START ---
+        self.db_writer_thread = DatabaseWriter()
+        self.db_writer_thread.db_status_signal.connect(lambda msg: self.status_label.setText(f"DB Status: {msg}"))
+        self.db_writer_thread.error_occurred.connect(self.handle_error)
+        self.send_data_to_db_writer.connect(self.db_writer_thread.add_data_to_queue)
+        self.db_writer_thread.start()
+        # --- END DATABASE WRITER THREAD START ---
+
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"{self.log_file_prefix_input.text()}_{timestamp}.csv"
@@ -185,17 +326,21 @@ class MainWindow(QMainWindow):
             self.stop_serial()
             return
 
-        self.api_timer.timeout.connect(self.send_data_to_api)
-        self.api_timer.start(API_POST_INTERVAL_MS)
+        # self.api_timer.timeout.connect(self.send_data_to_api)
+        # self.api_timer.start(API_POST_INTERVAL_MS)
 
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
-        self.status_label.setText(f"Status: Reading from {port} at {baud_rate} baud & sending to API...")
+        self.status_label.setText(f"Status: Reading from {port} at {baud_rate} baud, sending to API & DB...")
 
     def stop_serial(self):
         if self.serial_reader:
             self.serial_reader.stop()
             self.serial_reader = None
+
+        if self.db_writer_thread: # Stop DB writer thread
+            self.db_writer_thread.stop()
+            self.db_writer_thread = None
 
         if self.log_file:
             self.log_file.close()
@@ -212,14 +357,25 @@ class MainWindow(QMainWindow):
         t_val, x_val, y_val, z_val = data
         current_time_pc = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
-        # --- MODIFIED: New API payload format ---
+        # --- API Payload ---
         self.latest_api_data = {
             "timestamp": datetime.now(timezone.utc).isoformat(), # UTC timestamp
             "b_x": x_val,
             "b_y": y_val,
             "b_z": z_val
         }
-        # --- END MODIFIED ---
+        # --- END API Payload ---
+
+        # --- DB Payload ---
+        db_payload = {
+            "timestamp": datetime.now(timezone.utc), # For MySQL DATETIME/TIMESTAMP
+            "b_x": x_val,
+            "b_y": y_val,
+            "b_z": z_val
+        }
+        if self.db_writer_thread and self.db_writer_thread.running:
+            self.send_data_to_db_writer.emit(db_payload)
+        # --- END DB Payload ---
 
         if self.log_file:
             self.log_file.write(f"{current_time_pc},{t_val},{x_val},{y_val},{z_val}\n")
@@ -245,7 +401,6 @@ class MainWindow(QMainWindow):
             return
 
         payload = self.latest_api_data
-        # You might want to print the *new* keys in the print statement
         print(f"Attempting to send single data point to API: timestamp={payload.get('timestamp', 'N/A')}, b_x={payload.get('b_x', 'N/A')}...")
         threading.Thread(target=self._perform_api_post, args=(payload,)).start()
 
@@ -253,7 +408,6 @@ class MainWindow(QMainWindow):
         try:
             response = requests.post(WEB_API_URL, json=payload_dict, timeout=5)
             response.raise_for_status()
-            # Update the message to reflect new keys
             message = f"API Post Successful: Sent timestamp={payload_dict.get('timestamp', 'N/A')}. Status {response.status_code}"
             print(message)
             self.api_post_result.emit(True, message)
@@ -288,6 +442,7 @@ class MainWindow(QMainWindow):
 
     def handle_error(self, message):
         self.status_label.setText(f"Error - {message}")
+        # The stop_serial() call here will stop both serial and db threads
         self.stop_serial()
 
     def closeEvent(self, event):
