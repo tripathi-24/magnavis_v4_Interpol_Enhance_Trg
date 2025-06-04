@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import requests
 import collections # Added for deque
 import mysql.connector # Added for database
+from uuid import getnode as get_mac
 
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget,
                              QPushButton, QHBoxLayout, QLabel, QLineEdit,
@@ -147,18 +148,25 @@ class DatabaseWriter(QThread):
 
             sql = f"""
             INSERT INTO {MAGNETIC_DATA_TABLE}
-            (timestamp, b_x, b_y, b_z)
-            VALUES (%s, %s, %s, %s)
+            ( b_x, b_y, b_z, timestamp, lat, lon, alt, theta_x, theta_y, theta_z, sensor_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
 
             # Prepare the list of tuples for executemany
             values_to_insert = []
             for dp in data_points_list:
                 values_to_insert.append((
-                    dp["timestamp"],
                     dp["b_x"],
                     dp["b_y"],
-                    dp["b_z"]
+                    dp["b_z"],
+                    dp["timestamp"],
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    dp["sensor_id"]
                 ))
 
             mycursor.executemany(sql, values_to_insert) # Use executemany
@@ -211,7 +219,7 @@ class MainWindow(QMainWindow):
 
         self.init_ui()
         self.init_plot()
-        self.data_buffer = {'t': [], 'x': [], 'y': [], 'z': []}
+        self.data_buffer = {'t': [], 'b_x': [], 'b_y': [], 'b_z': [], 'sensor_id': []}
         self.max_points = 500
         self.latest_api_data = None
 
@@ -296,7 +304,7 @@ class MainWindow(QMainWindow):
             self.status_label.setText("Status: Please select a serial port.")
             return
 
-        self.data_buffer = {'t': [], 'x': [], 'y': [], 'z': []}
+        self.data_buffer = {'t': [], 'b_x': [], 'b_y': [], 'b_z': [], 'sensor_id': []}
         self.latest_api_data = None
         self.curve_x.clear()
         self.curve_y.clear()
@@ -318,8 +326,9 @@ class MainWindow(QMainWindow):
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"{self.log_file_prefix_input.text()}_{timestamp}.csv"
+            self.log_file_start_time = timestamp
             self.log_file = open(filename, 'w')
-            self.log_file.write("timestamp_pc,t,x,y,z\n")
+            self.log_file.write("timestamp_pc,t,b_x,b_y,b_z,sensor_id\n")
             print(f"Logging data to: {filename}")
         except IOError as e:
             self.status_label.setText(f"Status: Could not open log file: {e}")
@@ -356,13 +365,15 @@ class MainWindow(QMainWindow):
     def update_data(self, data):
         t_val, x_val, y_val, z_val = data
         current_time_pc = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        sensor_id = 'S' + str(get_mac()) + '_' + self.log_file_start_time
 
         # --- API Payload ---
         self.latest_api_data = {
             "timestamp": datetime.now(timezone.utc).isoformat(), # UTC timestamp
             "b_x": x_val,
             "b_y": y_val,
-            "b_z": z_val
+            "b_z": z_val,
+            "sensor_id": sensor_id
         }
         # --- END API Payload ---
 
@@ -371,28 +382,30 @@ class MainWindow(QMainWindow):
             "timestamp": datetime.now(timezone.utc), # For MySQL DATETIME/TIMESTAMP
             "b_x": x_val,
             "b_y": y_val,
-            "b_z": z_val
+            "b_z": z_val,
+            "sensor_id": sensor_id
         }
         if self.db_writer_thread and self.db_writer_thread.running:
             self.send_data_to_db_writer.emit(db_payload)
         # --- END DB Payload ---
 
         if self.log_file:
-            self.log_file.write(f"{current_time_pc},{t_val},{x_val},{y_val},{z_val}\n")
+            self.log_file.write(f"{current_time_pc},{t_val},{x_val},{y_val},{z_val},{sensor_id}\n")
             self.log_file.flush()
 
         self.data_buffer['t'].append(t_val)
-        self.data_buffer['x'].append(x_val)
-        self.data_buffer['y'].append(y_val)
-        self.data_buffer['z'].append(z_val)
+        self.data_buffer['b_x'].append(x_val)
+        self.data_buffer['b_y'].append(y_val)
+        self.data_buffer['b_z'].append(z_val)
+        self.data_buffer['sensor_id'].append(sensor_id)
 
         if len(self.data_buffer['t']) > self.max_points:
             for key in self.data_buffer:
                 self.data_buffer[key] = self.data_buffer[key][-self.max_points:]
 
-        self.curve_x.setData(self.data_buffer['t'], self.data_buffer['x'])
-        self.curve_y.setData(self.data_buffer['t'], self.data_buffer['y'])
-        self.curve_z.setData(self.data_buffer['t'], self.data_buffer['z'])
+        self.curve_x.setData(self.data_buffer['t'], self.data_buffer['b_x'])
+        self.curve_y.setData(self.data_buffer['t'], self.data_buffer['b_y'])
+        self.curve_z.setData(self.data_buffer['t'], self.data_buffer['b_z'])
 
         self.plot_widget.autoRange()
 
