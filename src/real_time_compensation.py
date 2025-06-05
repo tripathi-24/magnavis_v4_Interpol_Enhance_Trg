@@ -328,7 +328,8 @@ class MainWindow(QMainWindow):
             filename = f"{self.log_file_prefix_input.text()}_{timestamp}.csv"
             self.log_file_start_time = timestamp
             self.log_file = open(filename, 'w')
-            self.log_file.write("timestamp_pc,t,b_x,b_y,b_z,sensor_id\n")
+            # timestamp, bx, by, bz, lat, lon, altitude, thetax, thetay, thetaz, sensor_id
+            self.log_file.write("timestamp_pc,b_x,b_y,b_z,lat,lon,altitude,thetax,thetay,thetaz,sensor_id\n")
             print(f"Logging data to: {filename}")
         except IOError as e:
             self.status_label.setText(f"Status: Could not open log file: {e}")
@@ -390,7 +391,15 @@ class MainWindow(QMainWindow):
         # --- END DB Payload ---
 
         if self.log_file:
-            self.log_file.write(f"{current_time_pc},{t_val},{x_val},{y_val},{z_val},{sensor_id}\n")
+            # time, bx, by, bz, lat, lon, altitude, thetax, thetay, thetaz, sensor_id
+            # 26.5123251,80.2238068,2018
+            lat = '26.5123251'
+            lon = '80.2238068'
+            altitude = '2018'
+            thetax = '0'
+            thetay = '0'
+            thetaz = '0'
+            self.log_file.write(f"{current_time_pc},{x_val},{y_val},{z_val},{lat},{lon},{altitude},{thetax},{thetay},{thetaz},{sensor_id}\n")
             self.log_file.flush()
 
         self.data_buffer['t'].append(t_val)
