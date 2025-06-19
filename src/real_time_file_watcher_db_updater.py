@@ -221,6 +221,8 @@ MAGNETIC_DATA_TABLE = "KTSWebsite_magneticdatamodel"
 folder_dir = os.path.dirname(__file__)
 max_retries = 100
 
+CSV_FILE_PATH = ''
+
 while (max_retries>0):
     print('folder_dir', folder_dir)
     paths = glob.glob(f'{folder_dir}/*.csv')
@@ -252,8 +254,11 @@ while (max_retries>0):
         break
     time.sleep(1)
     
-
-print('CSV_FILE_PATH', CSV_FILE_PATH)
+if CSV_FILE_PATH:
+    print('CSV_FILE_PATH', CSV_FILE_PATH)
+else:
+    print('Could not find a recent file to log... exiting')
+    sys.exit(0)
 
 # Main execution
 if __name__ == "__main__":
