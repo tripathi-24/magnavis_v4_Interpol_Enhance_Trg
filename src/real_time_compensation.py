@@ -1,12 +1,15 @@
 import sys
+import os
 import serial
 import threading
 import time
+import re
 from datetime import datetime, timezone
 import requests
 import collections # Added for deque
 import mysql.connector # Added for database
 from uuid import getnode as get_mac
+import subprocess
 
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QWidget,
                              QPushButton, QHBoxLayout, QLabel, QLineEdit,
@@ -51,17 +54,27 @@ class SerialReader(QThread):
                     if line:
                         try:
                             values_str = line.split(',')
-                            if len(values_str) == 4:
-                                t = float(values_str[0])
-                                x = float(values_str[1])
-                                y = float(values_str[2])
-                                z = float(values_str[3])
-                                self.data_received.emit([t, x, y, z])
+                            # print('values_str', values_str)
+                            if len(values_str) == 9:
+                                try:
+                                    bx = float(values_str[0])
+                                    by = float(values_str[1])
+                                    bz = float(values_str[2])
+                                    lat = float(values_str[3])
+                                    lon = float(values_str[4])
+                                    alt = float(values_str[5])
+                                    thetax = float(values_str[6])
+                                    thetay = float(values_str[7])
+                                    thetaz = float(values_str[8])
+                                except:
+                                    continue
+                                self.data_received.emit([bx, by, bz, lat, lon, alt, thetax, thetay, thetaz])
                             else:
+                                # put some retries logic before straightaway throwing error
                                 self.error_occurred.emit(f"Malformed data: {line}")
                         except ValueError:
                             self.error_occurred.emit(f"Could not parse data: {line}")
-                time.sleep(0.01)
+                time.sleep(0.001)
         except serial.SerialException as e:
             self.error_occurred.emit(f"Serial port error: {e}")
             print(f"Serial port error in SerialReader: {e}")
@@ -93,7 +106,7 @@ class DatabaseWriter(QThread):
         super().__init__()
         self.running = False
         self.data_queue = collections.deque()
-        self.batch_size = 100 # Define a batch size, or process all available.
+        self.batch_size = 200 # Define a batch size, or process all available.
                               # For "last inserted till now," we'll process all available.
 
     def run(self):
@@ -111,14 +124,15 @@ class DatabaseWriter(QThread):
 
                     if data_points_to_insert: # Ensure the list is not empty
                         try:
-                            print(f"DatabaseWriter thread: Processing batch of {len(data_points_to_insert)} points for insert.")
+                            # print(f"DatabaseWriter thread: Processing batch of {len(data_points_to_insert)} points for insert.")
+                            # print("from", data_points_to_insert[0], "to", data_points_to_insert[-1])
                             self._insert_data(data_points_to_insert) # Now sends a list
                             self.db_status_signal.emit(f"Batch of {len(data_points_to_insert)} points inserted.")
                         except Exception as e: # Catch any errors during insert, including connection issues
                             self.error_occurred.emit(f"DB Batch Insert/Connection Error: {e}")
                             print(f"DatabaseWriter thread: CAUGHT ERROR during batch insert: {e}")
                 else:
-                    time.sleep(0.01) # Small sleep to prevent busy-waiting if queue is empty
+                    time.sleep(0.1) # Small sleep to prevent busy-waiting if queue is empty
 
         except Exception as e:
             self.error_occurred.emit(f"Critical error in DatabaseWriter thread: {e}. Stopping.")
@@ -160,15 +174,16 @@ class DatabaseWriter(QThread):
                     dp["b_y"],
                     dp["b_z"],
                     dp["timestamp"],
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
+                    dp['lat'],
+                    dp['lon'],
+                    dp['alt'],
+                    dp['thetax'],
+                    dp['thetay'],
+                    dp['thetaz'],
                     dp["sensor_id"]
                 ))
-
+            
+            # print('sql, values_to_insert', sql, values_to_insert)
             mycursor.executemany(sql, values_to_insert) # Use executemany
             mydb.commit()
             print(f"Batch of {len(data_points_list)} points inserted successfully.")
@@ -200,8 +215,8 @@ class DatabaseWriter(QThread):
 
 # --- Main Window Class ---
 class MainWindow(QMainWindow):
-    api_post_result = pyqtSignal(bool, str)
-    send_data_to_db_writer = pyqtSignal(dict) # New signal to send data to DB writer
+    # api_post_result = pyqtSignal(bool, str)
+    # send_data_to_db_writer = pyqtSignal(dict) # New signal to send data to DB writer
 
     def __init__(self):
         super().__init__()
@@ -219,11 +234,12 @@ class MainWindow(QMainWindow):
 
         self.init_ui()
         self.init_plot()
-        self.data_buffer = {'t': [], 'b_x': [], 'b_y': [], 'b_z': [], 'sensor_id': []}
+        self.data_buffer = {'current_time_pc': [], 'b_x': [], 'b_y': [], 'b_z': [], 'lat': [], 'lon': [], 'alt': [], 'thetax': [], 'thetay': [], 'thetaz': [], 'sensor_id': []}
+
         self.max_points = 500
         self.latest_api_data = None
 
-        self.api_post_result.connect(self.handle_api_post_result)
+        # self.api_post_result.connect(self.handle_api_post_result)
 
     def init_ui(self):
         serial_config_layout = QHBoxLayout()
@@ -234,7 +250,7 @@ class MainWindow(QMainWindow):
         serial_config_layout.addWidget(self.port_input)
 
         serial_config_layout.addWidget(QLabel("Baud Rate:"))
-        self.baud_rate_input = QLineEdit("9600")
+        self.baud_rate_input = QLineEdit("115200")
         serial_config_layout.addWidget(self.baud_rate_input)
 
         self.start_button = QPushButton("Start")
@@ -304,7 +320,6 @@ class MainWindow(QMainWindow):
             self.status_label.setText("Status: Please select a serial port.")
             return
 
-        self.data_buffer = {'t': [], 'b_x': [], 'b_y': [], 'b_z': [], 'sensor_id': []}
         self.latest_api_data = None
         self.curve_x.clear()
         self.curve_y.clear()
@@ -313,14 +328,16 @@ class MainWindow(QMainWindow):
         self.serial_reader = SerialReader(port, baud_rate)
         self.serial_reader.data_received.connect(self.update_data)
         self.serial_reader.error_occurred.connect(self.handle_error)
+        self.counter = time.time()
         self.serial_reader.start()
+        #time.sleep(0.1)
 
-        # --- DATABASE WRITER THREAD START ---
-        self.db_writer_thread = DatabaseWriter()
-        self.db_writer_thread.db_status_signal.connect(lambda msg: self.status_label.setText(f"DB Status: {msg}"))
-        self.db_writer_thread.error_occurred.connect(self.handle_error)
-        self.send_data_to_db_writer.connect(self.db_writer_thread.add_data_to_queue)
-        self.db_writer_thread.start()
+        # # --- DATABASE WRITER THREAD START ---
+        # self.db_writer_thread = DatabaseWriter()
+        # self.db_writer_thread.db_status_signal.connect(lambda msg: self.status_label.setText(f"DB Status: {msg}"))
+        # self.db_writer_thread.error_occurred.connect(self.handle_error)
+        # self.send_data_to_db_writer.connect(self.db_writer_thread.add_data_to_queue)
+        # self.db_writer_thread.start()
         # --- END DATABASE WRITER THREAD START ---
 
         try:
@@ -329,7 +346,7 @@ class MainWindow(QMainWindow):
             self.log_file_start_time = timestamp
             self.log_file = open(filename, 'w')
             # timestamp, bx, by, bz, lat, lon, altitude, thetax, thetay, thetaz, sensor_id
-            self.log_file.write("timestamp_pc,b_x,b_y,b_z,lat,lon,altitude,thetax,thetay,thetaz,sensor_id\n")
+            self.log_file.write("timestamp_pc,b_x,b_y,b_z,lat,lon,alt,thetax,thetay,thetaz,sensor_id\n")
             print(f"Logging data to: {filename}")
         except IOError as e:
             self.status_label.setText(f"Status: Could not open log file: {e}")
@@ -364,16 +381,23 @@ class MainWindow(QMainWindow):
         self.status_label.setText("Status: Stopped.")
 
     def update_data(self, data):
-        t_val, x_val, y_val, z_val = data
+        # print('data=', data)
+        bx_val, by_val, bz_val, lat_val, lon_val, alt_val, thetax_val, thetay_val, thetaz_val = data
         current_time_pc = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
         sensor_id = 'S' + str(get_mac()) + '_' + self.log_file_start_time
 
         # --- API Payload ---
         self.latest_api_data = {
             "timestamp": datetime.now(timezone.utc).isoformat(), # UTC timestamp
-            "b_x": x_val,
-            "b_y": y_val,
-            "b_z": z_val,
+            "b_x": bx_val,
+            "b_y": by_val,
+            "b_z": bz_val,
+            "lat": lat_val,
+            "lon": lon_val,
+            "alt": alt_val,
+            "thetax": thetax_val,
+            "thetay": thetay_val,
+            "thetaz": thetaz_val,
             "sensor_id": sensor_id
         }
         # --- END API Payload ---
@@ -381,9 +405,15 @@ class MainWindow(QMainWindow):
         # --- DB Payload ---
         db_payload = {
             "timestamp": datetime.now(timezone.utc), # For MySQL DATETIME/TIMESTAMP
-            "b_x": x_val,
-            "b_y": y_val,
-            "b_z": z_val,
+            "b_x": bx_val,
+            "b_y": by_val,
+            "b_z": bz_val,
+            "lat": lat_val,
+            "lon": lon_val,
+            "alt": alt_val,
+            "thetax": thetax_val,
+            "thetay": thetay_val,
+            "thetaz": thetaz_val,
             "sensor_id": sensor_id
         }
         if self.db_writer_thread and self.db_writer_thread.running:
@@ -391,30 +421,30 @@ class MainWindow(QMainWindow):
         # --- END DB Payload ---
 
         if self.log_file:
-            # time, bx, by, bz, lat, lon, altitude, thetax, thetay, thetaz, sensor_id
-            # 26.5123251,80.2238068,2018
-            lat = '26.5123251'
-            lon = '80.2238068'
-            altitude = '2018'
-            thetax = '0'
-            thetay = '0'
-            thetaz = '0'
-            self.log_file.write(f"{current_time_pc},{x_val},{y_val},{z_val},{lat},{lon},{altitude},{thetax},{thetay},{thetaz},{sensor_id}\n")
+            # current_timestamp, bx, by, bz, lat, lon, alt, thetax, thetay, thetaz, sensor_id
+            self.log_file.write(f"{current_time_pc},{bx_val},{by_val},{bz_val},{lat_val},{lon_val},{alt_val},{thetax_val},{thetay_val},{thetaz_val},{sensor_id}\n")
             self.log_file.flush()
-
-        self.data_buffer['t'].append(t_val)
-        self.data_buffer['b_x'].append(x_val)
-        self.data_buffer['b_y'].append(y_val)
-        self.data_buffer['b_z'].append(z_val)
+        
+        self.data_buffer['current_time_pc'].append(time.time() - self.counter)
+        self.data_buffer['b_x'].append(bx_val)
+        self.data_buffer['b_y'].append(by_val)
+        self.data_buffer['b_z'].append(bz_val)
+        self.data_buffer['lat'].append(lat_val)
+        self.data_buffer['lon'].append(lon_val)
+        self.data_buffer['alt'].append(alt_val)
+        self.data_buffer['thetax'].append(thetax_val)
+        self.data_buffer['thetay'].append(thetay_val)
+        self.data_buffer['thetaz'].append(thetaz_val)
         self.data_buffer['sensor_id'].append(sensor_id)
 
-        if len(self.data_buffer['t']) > self.max_points:
+        if len(self.data_buffer['current_time_pc']) > self.max_points:
             for key in self.data_buffer:
                 self.data_buffer[key] = self.data_buffer[key][-self.max_points:]
 
-        self.curve_x.setData(self.data_buffer['t'], self.data_buffer['b_x'])
-        self.curve_y.setData(self.data_buffer['t'], self.data_buffer['b_y'])
-        self.curve_z.setData(self.data_buffer['t'], self.data_buffer['b_z'])
+        tbuff = self.data_buffer['current_time_pc']
+        self.curve_x.setData(tbuff, self.data_buffer['b_x'])
+        self.curve_y.setData(tbuff, self.data_buffer['b_y'])
+        self.curve_z.setData(tbuff, self.data_buffer['b_z'])
 
         self.plot_widget.autoRange()
 
@@ -472,6 +502,9 @@ class MainWindow(QMainWindow):
         event.accept()
 
 if __name__ == "__main__":
+    # Usage
+    subprocess.Popen(['D:\Joy\Projects\Python311\python', 'real_time_file_watcher_db_updater.py'])
+    print('opened process', ['D:\Joy\Projects\Python311\python', 'real_time_file_watcher_db_updater.py'])
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
