@@ -20,7 +20,17 @@ git clone https://gitlab.com/joy.b/magnavis.git
 cd magnavis
 ```
 ### 2. Install python modules
-set up and activate virtual environment (optional), and install the libraries:
+set up and activate virtual environment (optional)
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+powershell(Windows)
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+
+ and install the libraries:
 ~~~~
 pip install -r requirements_feb_2025.txt
 ~~~~

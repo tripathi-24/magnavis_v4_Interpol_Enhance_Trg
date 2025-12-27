@@ -13,10 +13,10 @@ import numpy as np
 
 import vtk
 from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableView, QLabel, QSpacerItem, QSizePolicy, QSplashScreen, QWidget
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QTableView, QLabel, QSpacerItem, QSizePolicy, QSplashScreen, QWidget, QDoubleSpinBox, QHBoxLayout, QTextEdit, QSplitter
 from PyQt5 import Qt, uic
 from PyQt5.QtCore import pyqtSignal, QAbstractTableModel, QModelIndex, QTimer, QDateTime, QMutex, QObject, QThread
-from PyQt5.QtGui import QStandardItemModel, QPixmap, QPalette, QColor
+from PyQt5.QtGui import QStandardItemModel, QPixmap, QPalette, QColor, QTextCursor
 from PyQt5.QtGui import QDrag, QPixmap, QPainter, QCursor
 from PyQt5.QtCore import QMimeData, Qt as CoreQt
 
@@ -40,6 +40,12 @@ from matplotlib.backends.backend_qtagg import \
 # from matplotlib.backends.qt_compat import QtWidgets
 from matplotlib.figure import Figure
 # import matplotlib.pyplot as plt
+try:
+    import mplcursors
+    MPLCURSORS_AVAILABLE = True
+except ImportError:
+    MPLCURSORS_AVAILABLE = False
+    print('mplcursors not available - tooltips will not work. Install with: pip install mplcursors')
 
 import pandas as pd
 # import libraries
@@ -55,6 +61,7 @@ from PyQt5.uic.Compiler.qtproxies import QtWidgets
 
 from data_convert_now import get_timeseries_magnetic_data
 # from predictor_ai import LSTMPredictor
+from Anomaly_detector import AnomalyDetector
 
 APP_BASE = os.path.dirname(__file__)
 
@@ -73,7 +80,8 @@ def load_vtk_file(path: str):
 
 def getFilePath(title):
     qfd = QFileDialog()
-    path = r"D:\Joy\Projects\Quantum\Magnetometry\Magnavis_projects\prj1-real-data-drone"
+    # Use current working directory or home directory as default (cross-platform)
+    path = os.path.expanduser("~")  # Default to user's home directory
     f_type = "csv(*.csv)"
     f = QFileDialog.getOpenFileName(qfd, title, path, f_type)
     return f
@@ -279,11 +287,58 @@ class MagTimeSeriesWidget(timeSerBase, timeSerForm):
         elif '5 min' in refresh_rate_option:
             refresh_rate = 300
         
+        # Add Anomaly Detection Threshold Control
+        anomaly_layout = QHBoxLayout()
+        anomaly_label = QLabel("Anomaly Threshold Multiplier:")
+        anomaly_layout.addWidget(anomaly_label)
+        
+        self.threshold_spinbox = QDoubleSpinBox()
+        self.threshold_spinbox.setMinimum(0.1)
+        self.threshold_spinbox.setMaximum(10.0)
+        self.threshold_spinbox.setSingleStep(0.1)
+        self.threshold_spinbox.setDecimals(2)
+        self.threshold_spinbox.setValue(2.5)  # Default value
+        self.threshold_spinbox.setToolTip("Higher values = fewer anomalies detected (more strict)\nLower values = more anomalies detected (more sensitive)")
+        anomaly_layout.addWidget(self.threshold_spinbox)
+        
+        # Connect threshold change to update anomaly detector
+        self.threshold_spinbox.valueChanged.connect(self.on_threshold_changed)
+        
+        # Add to the grid layout (add after row 3, column 5)
+        self.gridLayout.addLayout(anomaly_layout, 4, 0, 1, 5)
+        
         # if refresh_rate:
         #     self.timerRefresh = QtCore.QTimer()
         #     self.timerRefresh.timeout.connect(self.timerRefreshEvent)
         #     self.timerRefresh.start(1000*refresh_rate)
         #     print('refresh timer on')
+    
+    def on_threshold_changed(self, value):
+        """Called when user changes the threshold multiplier"""
+        if hasattr(self.app, 'anomaly_detector'):
+            old_threshold = self.app.anomaly_detector.threshold_multiplier
+            self.app.anomaly_detector.threshold_multiplier = value
+            self.app.log(f'Anomaly Detection: Threshold multiplier changed from {old_threshold:.2f} to {value:.2f}', level='Info')
+            
+            # Recalculate threshold with new multiplier
+            if len(self.app.anomaly_detector.prediction_errors) >= self.app.anomaly_detector.min_samples_for_threshold:
+                mean_error = np.mean(self.app.anomaly_detector.prediction_errors)
+                std_error = np.std(self.app.anomaly_detector.prediction_errors)
+                new_threshold_value = mean_error + value * std_error
+                self.app.anomaly_detector.anomaly_threshold = new_threshold_value
+                self.app.log(f'Anomaly Detection: New threshold value calculated: {new_threshold_value:.2f} nT (mean: {mean_error:.2f}, std: {std_error:.2f}, samples: {len(self.app.anomaly_detector.prediction_errors)})', level='Info')
+            else:
+                # Not enough samples yet - use default or show warning
+                current_threshold = self.app.anomaly_detector.anomaly_threshold
+                threshold_str = f'{current_threshold:.2f}' if current_threshold is not None else '30.0 (default)'
+                self.app.log(f'Anomaly Detection: Not enough samples for threshold calculation. Need {self.app.anomaly_detector.min_samples_for_threshold}, have {len(self.app.anomaly_detector.prediction_errors)}. Using threshold: {threshold_str} nT', level='Warning')
+            
+            # Re-run anomaly detection with new threshold
+            # This will recalculate the threshold using the new multiplier and re-check all data
+            self.app._detect_anomalies()
+            # Force canvas update to show new anomalies (with small delay to ensure detection completes)
+            if hasattr(self.app, '_update_canvas'):
+                QTimer.singleShot(200, self.app._update_canvas)
 
 
 appBase, appForm = uic.loadUiType(os.path.join(APP_BASE, 'ui_files', 'ui_ApplicationWindow.ui'))
@@ -843,6 +898,15 @@ class Application(QApplication):
         self.predict_last_t_in_plot = None
         self.prediction_process = None
         
+        # Initialize anomaly detector for real-time anomaly detection
+        self.anomaly_detector = AnomalyDetector(threshold_multiplier=2.5, min_samples_for_threshold=10)
+        self.anomaly_line = None  # Scatter plot for anomalies on dynamic plot
+        self.anomaly_line_static = None  # Scatter plot for anomalies on static plot
+        self.anomaly_vertical_lines = []  # List of vertical lines for anomalies on dynamic plot
+        self.anomaly_vertical_lines_static = []  # List of vertical lines for anomalies on static plot
+        self.anomaly_times = []
+        self.anomaly_values = []
+        
         self.load_visualization_framework()
         self.splash.showMessage("\n    Loaded:\n    modules\n    visualization")
         self.load_plot_framework() # takes noticeable time for real time computation of magnetic field over latlon grid, move this away in non-blocking thread - todo
@@ -867,20 +931,63 @@ class Application(QApplication):
         filename = 'predict_input.csv'
         if self.session_id:
             folder = os.path.join(folder, 'sessions', self.session_id)
-            df_save_inp = pd.DataFrame({'x': x_t, 'y': y_t})
+            # Ensure the session directory exists
+            os.makedirs(folder, exist_ok=True)
+            
+            # NEW: Filter out anomalous data points from training dataset
+            # Convert anomaly times to a set for efficient lookup
+            anomaly_times_set = set()
+            if self.anomaly_times and len(self.anomaly_times) > 0:
+                # Normalize anomaly times to datetime for comparison
+                for anomaly_time in self.anomaly_times:
+                    if isinstance(anomaly_time, (datetime, pd.Timestamp)):
+                        anomaly_times_set.add(anomaly_time)
+                    else:
+                        anomaly_times_set.add(pd.to_datetime(anomaly_time))
+            
+            # Filter out data points that match anomaly timestamps
+            filtered_x_t = []
+            filtered_y_t = []
+            excluded_count = 0
+            
+            for time_val, mag_val in zip(x_t, y_t):
+                # Convert time to datetime for comparison
+                time_dt = pd.to_datetime(time_val) if not isinstance(time_val, (datetime, pd.Timestamp)) else time_val
+                
+                # Check if this timestamp is an anomaly
+                if time_dt not in anomaly_times_set:
+                    filtered_x_t.append(time_val)
+                    filtered_y_t.append(mag_val)
+                else:
+                    excluded_count += 1
+            
+            # Create DataFrame with filtered data (anomalies excluded)
+            df_save_inp = pd.DataFrame({'x': filtered_x_t, 'y': filtered_y_t})
             inp_file = os.path.join(folder, filename)
             df_save_inp.to_csv(inp_file, index=False)
+            
+            if excluded_count > 0:
+                self.log(f'Saved prediction input file: {inp_file} with {len(df_save_inp)} data points ({excluded_count} anomalies excluded from training)', level='Info')
+            else:
+                self.log(f'Saved prediction input file: {inp_file} with {len(df_save_inp)} data points', level='Info')
+            
             if not self.predict_app_started:
                 self.start_prediction_process(inp_file)
                 self.predict_app_started = True
+            else:
+                self.log('Prediction process already started, skipping new start', level='Debug')
 
     def load_plot_framework(self):
         window = self.appWin
         layout = Qt.QVBoxLayout()
         window.tab_5.setLayout(layout)
+        # Ensure tab widget has proper size policy
+        window.tab_5.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-        static_canvas = FigureCanvas(Figure(figsize=(1, 1)))
-        # static_canvas.setMinimumHeight(500)
+        static_canvas = FigureCanvas(Figure(figsize=(5, 4)))
+        # Configure canvas to fit available space without scrolling
+        static_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        static_canvas.setMinimumHeight(300)  # Reasonable minimum
         # Ideally one would use self.addToolBar here, but it is slightly
         # incompatible between PyQt6 and other bindings, so we just add the
         # toolbar as a plain widget instead.
@@ -955,7 +1062,9 @@ class Application(QApplication):
             window = self.appWin
             
             # print(window.tab_2, window.tab_2.__class__)
-            static_canvas = FigureCanvas(Figure(figsize=(5, 3)))
+            # Use flexible figure size that adapts to container
+            static_canvas = FigureCanvas(Figure(figsize=(6, 3)))
+            static_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
             # Ideally one would use self.addToolBar here, but it is slightly
             # incompatible between PyQt6 and other bindings, so we just add the
             # toolbar as a plain widget instead.
@@ -963,7 +1072,16 @@ class Application(QApplication):
             timeSerWidget = MagTimeSeriesWidget(self, self.appWin)
             layout_outer = Qt.QVBoxLayout()
             window.tab_2.setLayout(layout_outer)
+            # Ensure tab widget has proper size policy
+            window.tab_2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
             layout_outer.addWidget(timeSerWidget)
+            
+            # Store reference to time series widget for access later
+            self.timeSerWidget = timeSerWidget
+            
+            # Sync threshold spinbox with anomaly detector value after widget is fully initialized
+            # Use QTimer to ensure widget is ready
+            QTimer.singleShot(100, lambda: self._sync_threshold_spinbox())
             
             
             layout = timeSerWidget.verticalLayout_3 # 
@@ -994,6 +1112,16 @@ class Application(QApplication):
             # self._static_ax.tick_params(rotation=15) # xticks(rotation=25)
             self._static_line, = self._static_ax.plot(self.x_t, self.y_mag_t, ".")
             
+            # Add cursor tooltips for static plot
+            if MPLCURSORS_AVAILABLE:
+                cursor_static = mplcursors.cursor(self._static_line, hover=True)
+                @cursor_static.connect("add")
+                def on_add_static(sel):
+                    idx = sel.target.index
+                    if idx < len(self.x_t) and idx < len(self.y_mag_t):
+                        time_str = pd.to_datetime(self.x_t[idx]).strftime('%Y-%m-%d %H:%M:%S') if isinstance(self.x_t[idx], (datetime, pd.Timestamp)) else str(self.x_t[idx])
+                        sel.annotation.set_text(f'Time: {time_str}\nValue: {self.y_mag_t[idx]:.2f} nT')
+            
             self._dynamic_ax = dynamic_canvas.figure.subplots()
             # Set up a Line2D.
             # self.xdata = np.linspace(0, 10, 101)
@@ -1001,6 +1129,17 @@ class Application(QApplication):
             # self._update_xydata(force=True)
             # self._line, = self._dynamic_ax.plot(self.xdata, self.ydata)
             self._line, = self._dynamic_ax.plot(self.x_t, self.y_mag_t)
+            
+            # Add cursor tooltips for dynamic plot
+            if MPLCURSORS_AVAILABLE:
+                cursor_dynamic = mplcursors.cursor(self._line, hover=True)
+                @cursor_dynamic.connect("add")
+                def on_add_dynamic(sel):
+                    idx = sel.target.index
+                    if idx < len(self.x_t) and idx < len(self.y_mag_t):
+                        time_str = pd.to_datetime(self.x_t[idx]).strftime('%Y-%m-%d %H:%M:%S') if isinstance(self.x_t[idx], (datetime, pd.Timestamp)) else str(self.x_t[idx])
+                        sel.annotation.set_text(f'Time: {time_str}\nValue: {self.y_mag_t[idx]:.2f} nT')
+            
             self._save_data(self.x_t, self.y_mag_t)
             self._line_new = None
             # The below two timers must be attributes of self, so that the garbage
@@ -1023,14 +1162,27 @@ class Application(QApplication):
     
     def start_prediction_process(self, input_file):
         try:
-            python_exe = r'D:\Joy\Projects\Python312\python.exe' # change as per local machine of the developer. should not have space!
-            python_app_file = os.path.join(APP_BASE, 'predictor_ai.py') # each of these should not have space!!
-            command = f'{python_exe} {python_app_file} {input_file}'
-            print('starting command', command)
+            # Use the current Python interpreter (cross-platform)
+            python_exe = sys.executable
+            python_app_file = os.path.join(APP_BASE, 'predictor_ai.py')
+            
+            # Construct command as a list for better cross-platform compatibility
+            command = [python_exe, python_app_file, input_file]
+            
+            self.log(f'Starting prediction process: {" ".join(command)}', level='Info')
             self.predictor_input_file = input_file
-            self.prediction_process = subprocess.Popen(command)
+            
+            # Use subprocess.Popen with list argument (safer, cross-platform)
+            # shell=False is safer and works on all platforms
+            self.prediction_process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=APP_BASE  # Set working directory to APP_BASE
+            )
+            self.log(f'Prediction process started (PID: {self.prediction_process.pid})', level='Info')
         except Exception as e:
-            self.log('Error starting prediction process', error=e)
+            self.log(f'Error starting prediction process: {e}', error=e, level='Error')
     
     def _update_xydata(self, force = False):
         # Shift the sinusoid as a function of time.
@@ -1067,7 +1219,29 @@ class Application(QApplication):
     def _update_predictions_data(self):
         try:
             predict_input = self.predictor_input_file
+            if not predict_input:
+                return  # No prediction input file set yet
+            
             predict_output_file = os.path.join(os.path.dirname(predict_input), 'predict_out.csv')
+            
+            # Check if prediction process is still running
+            if self.prediction_process:
+                return_code = self.prediction_process.poll()
+                if return_code is None:
+                    # Process is still running
+                    self.log(f'Prediction process still running (PID: {self.prediction_process.pid})', level='Debug')
+                    return
+                elif return_code != 0:
+                    # Process finished with error
+                    stderr_output = self.prediction_process.stderr.read().decode('utf-8', errors='ignore') if self.prediction_process.stderr else "No error output"
+                    self.log(f'Prediction process failed with return code {return_code}. Error: {stderr_output}', level='Error')
+                    self.prediction_process = None
+                    self.predict_app_started = False
+                    return
+                else:
+                    # Process finished successfully
+                    self.log(f'Prediction process completed successfully (PID: {self.prediction_process.pid})', level='Info')
+            
             if os.path.exists(predict_output_file):
                 predictions = pd.read_csv(predict_output_file)
                 predictions['x'] = pd.to_datetime(predictions['x'])
@@ -1077,19 +1251,212 @@ class Application(QApplication):
                     if len(self.predict_x_t)==0: # first prediction
                         self.predict_x_t.append(__x) # list append to list (list of list)
                         self.predict_y_t.append(__y) # list append to list (list of list)
+                        self.log(f'First prediction loaded: {len(__x)} points', level='Info')
                         if self.prediction_process:
-                            self.prediction_process.kill()
+                            self.prediction_process = None
                             self.predict_app_started = False
                     elif self.predict_x_t[-1][-1] < __x[0]: #new prediction confirmed
                         self.predict_x_t.append(__x) # list append to list (list of list)
                         self.predict_y_t.append(__y) # list append to list (list of list)
+                        self.log(f'New prediction loaded: {len(__x)} points', level='Info')
                         if self.prediction_process:
-                            self.prediction_process.kill()
+                            self.prediction_process = None
                             self.predict_app_started = False
+                    
+                    # Perform anomaly detection when we have both actual and predicted data
+                    self._detect_anomalies()
+            else:
+                # Output file doesn't exist yet - process might still be running or failed
+                if self.prediction_process and self.prediction_process.poll() is None:
+                    self.log(f'Waiting for prediction output file: {predict_output_file}', level='Debug')
+                else:
+                    self.log(f'Prediction output file not found: {predict_output_file}. Process may have failed.', level='Warning')
                             
         except Exception as e:
-            self.log('Error updating predictions data', error=e)
+            self.log('Error updating predictions data', error=e, level='Error')
+    
+    def _sync_threshold_spinbox(self):
+        """Sync the threshold spinbox with the current anomaly detector value"""
+        try:
+            if hasattr(self, 'timeSerWidget') and hasattr(self.timeSerWidget, 'threshold_spinbox') and hasattr(self, 'anomaly_detector'):
+                self.timeSerWidget.threshold_spinbox.setValue(self.anomaly_detector.threshold_multiplier)
+                self.log(f'Anomaly Detection: Threshold control initialized with value {self.anomaly_detector.threshold_multiplier:.2f}', level='Debug')
+        except Exception as e:
+            self.log(f'Error syncing threshold spinbox: {e}', level='Error')
+    
+    def _detect_anomalies(self):
+        """
+        Detect anomalies by comparing real-time actual data with predictions.
+        This method is called whenever new predictions are available.
+        Only compares new real-time data (green line) with predictions (purple line), not historic data.
+        """
+        try:
+            # Only use real-time data (new_x_t, new_y_mag_t) for anomaly detection
+            # This is the green line - real-time data that should be compared with predictions
+            realtime_actual_times = self.new_x_t if self.new_x_t else []
+            realtime_actual_values = self.new_y_mag_t if self.new_y_mag_t else []
+            
+            # Get all predictions (flatten the list of lists)
+            all_predicted_times = []
+            all_predicted_values = []
+            if self.predict_x_t and self.predict_y_t:
+                for pred_times, pred_values in zip(self.predict_x_t, self.predict_y_t):
+                    all_predicted_times.extend(pred_times)
+                    all_predicted_values.extend(pred_values)
+            
+            # Only detect anomalies if we have both real-time actual and predicted data
+            if len(realtime_actual_times) > 0 and len(all_predicted_times) > 0:
+                self.log(f'Anomaly Detection: Starting detection with {len(realtime_actual_times)} real-time actual points and {len(all_predicted_times)} predicted points', level='Info')
+                self.log(f'Anomaly Detection: Current threshold multiplier: {self.anomaly_detector.threshold_multiplier:.2f}', level='Info')
+                self.log(f'Anomaly Detection: Before detection - prediction_errors count: {len(self.anomaly_detector.prediction_errors)}', level='Debug')
                 
+                # Detect anomalies using the AnomalyDetector
+                # Only compare real-time data with predictions
+                # This will recalculate the threshold using the current threshold_multiplier
+                anomalies_df, threshold = self.anomaly_detector.detect_anomalies(
+                    actual_times=realtime_actual_times,
+                    actual_values=realtime_actual_values,
+                    predicted_times=all_predicted_times,
+                    predicted_values=all_predicted_values
+                )
+                
+                # Verify threshold was calculated correctly
+                expected_threshold = None
+                if len(self.anomaly_detector.prediction_errors) >= self.anomaly_detector.min_samples_for_threshold:
+                    mean_err = np.mean(self.anomaly_detector.prediction_errors)
+                    std_err = np.std(self.anomaly_detector.prediction_errors)
+                    expected_threshold = mean_err + self.anomaly_detector.threshold_multiplier * std_err
+                    if abs(threshold - expected_threshold) > 0.01:
+                        self.log(f'Anomaly Detection: WARNING - Threshold mismatch! Expected: {expected_threshold:.2f}, Got: {threshold:.2f}', level='Warning')
+                
+                self.log(f'Anomaly Detection: Detection completed. Found {len(anomalies_df)} anomalies. Threshold used: {threshold:.2f} nT (multiplier: {self.anomaly_detector.threshold_multiplier:.2f})', level='Info')
+                
+                # Log detailed statistics for debugging
+                stats = self.anomaly_detector.get_statistics()
+                
+                # First, check how many matched pairs we have
+                differences_df = self.anomaly_detector.calculate_differences(
+                    realtime_actual_times, realtime_actual_values, all_predicted_times, all_predicted_values
+                )
+                
+                if len(differences_df) > 0:
+                    self.log(f'Anomaly Detection: Matched {len(differences_df)} pairs between actual and predicted data', level='Info')
+                    max_diff = differences_df['difference'].abs().max()
+                    min_diff = differences_df['difference'].abs().min()
+                    mean_diff = differences_df['difference'].abs().mean()
+                    std_diff = differences_df['difference'].abs().std()
+                    self.log(f'Anomaly Detection: Differences - Max: {max_diff:.2f} nT, Min: {min_diff:.2f} nT, Mean: {mean_diff:.2f} nT, Std: {std_diff:.2f} nT', level='Info')
+                    
+                    # Show how many would be anomalies at current threshold
+                    if threshold is not None:
+                        potential_anomalies = (differences_df['difference'].abs() > threshold).sum()
+                        self.log(f'Anomaly Detection: {potential_anomalies} out of {len(differences_df)} matched pairs exceed threshold of {threshold:.2f} nT', level='Info')
+                else:
+                    # No matches found - this is the problem!
+                    self.log(f'Anomaly Detection: WARNING - No matched pairs found between actual and predicted data!', level='Warning')
+                    if len(realtime_actual_times) > 0 and len(all_predicted_times) > 0:
+                        actual_start = pd.to_datetime(realtime_actual_times[0])
+                        actual_end = pd.to_datetime(realtime_actual_times[-1])
+                        pred_start = pd.to_datetime(all_predicted_times[0])
+                        pred_end = pd.to_datetime(all_predicted_times[-1])
+                        self.log(f'Anomaly Detection: Real-time actual data range: {actual_start} to {actual_end}', level='Warning')
+                        self.log(f'Anomaly Detection: Predicted data range: {pred_start} to {pred_end}', level='Warning')
+                        time_gap = abs((pred_start - actual_end).total_seconds() / 60)  # gap in minutes
+                        self.log(f'Anomaly Detection: Time gap between actual end and predicted start: {time_gap:.1f} minutes (tolerance: 10 minutes)', level='Warning')
+                
+                if stats['total_samples'] > 0:
+                    self.log(f'Anomaly Detection: Statistics - Mean error: {stats["mean_error"]:.2f} nT, Std error: {stats["std_error"]:.2f} nT, Samples: {stats["total_samples"]}', level='Info')
+                    self.log(f'Anomaly Detection: Current threshold multiplier: {self.anomaly_detector.threshold_multiplier:.2f}', level='Info')
+                    self.log(f'Anomaly Detection: Threshold calculation - Mean + ({self.anomaly_detector.threshold_multiplier:.2f} × Std) = {stats["mean_error"]:.2f} + ({self.anomaly_detector.threshold_multiplier:.2f} × {stats["std_error"]:.2f}) = {threshold:.2f} nT', level='Info')
+                    
+                    # Show detailed comparison of differences vs threshold
+                    if len(differences_df) > 0:
+                        max_diff = differences_df['difference'].abs().max()
+                        min_diff = differences_df['difference'].abs().min()
+                        # Count how many exceed threshold
+                        exceeding_threshold = (differences_df['difference'].abs() > threshold).sum()
+                        self.log(f'Anomaly Detection: Differences vs Threshold - Max: {max_diff:.2f} nT, Min: {min_diff:.2f} nT, Threshold: {threshold:.2f} nT', level='Info')
+                        self.log(f'Anomaly Detection: {exceeding_threshold} out of {len(differences_df)} differences exceed threshold', level='Info')
+                        
+                        if len(anomalies_df) == 0 and exceeding_threshold > 0:
+                            self.log(f'Anomaly Detection: WARNING - {exceeding_threshold} differences exceed threshold but no anomalies in result! This may indicate a filtering issue.', level='Warning')
+                        elif len(anomalies_df) == 0:
+                            self.log(f'Anomaly Detection: No anomalies detected because all differences ({max_diff:.2f} nT max) are below threshold ({threshold:.2f} nT)', level='Info')
+                else:
+                    self.log(f'Anomaly Detection: Not enough samples for threshold calculation. Need {self.anomaly_detector.min_samples_for_threshold}, have {len(self.anomaly_detector.prediction_errors)}', level='Warning')
+                    self.log(f'Anomaly Detection: Using default threshold: {threshold:.2f} nT (multiplier {self.anomaly_detector.threshold_multiplier:.2f} not used until enough samples)', level='Warning')
+                
+                # Update anomaly data for visualization
+                if not anomalies_df.empty:
+                    # IMPORTANT: Only show anomalies where we have BOTH actual and predicted data
+                    # Filter to ensure 'predicted' column is not NaN (valid match exists)
+                    # The AnomalyDetector already filtered for valid matches, so we can trust these
+                    valid_anomalies = anomalies_df.dropna(subset=['predicted', 'actual'])
+                    
+                    if len(valid_anomalies) > 0:
+                        # Since AnomalyDetector already validated matches, we can use these directly
+                        new_anomaly_times = pd.to_datetime(valid_anomalies['time']).tolist()
+                        new_anomaly_values = valid_anomalies['actual'].tolist()
+                        
+                        # FIXED: Accumulate anomalies instead of replacing (retain across cycles)
+                        # Convert existing times to datetime for comparison
+                        existing_times_set = set()
+                        if self.anomaly_times:
+                            existing_times_set = {pd.to_datetime(t) if not isinstance(t, (datetime, pd.Timestamp)) else t for t in self.anomaly_times}
+                        
+                        # Add new anomalies, avoiding duplicates (same timestamp)
+                        new_count = 0
+                        max_anomalies = 1000  # Reasonable limit to prevent memory issues
+                        for new_time, new_value in zip(new_anomaly_times, new_anomaly_values):
+                            new_time_dt = pd.to_datetime(new_time) if not isinstance(new_time, (datetime, pd.Timestamp)) else new_time
+                            if new_time_dt not in existing_times_set:
+                                # If we're at the limit, remove oldest anomaly (FIFO)
+                                if len(self.anomaly_times) >= max_anomalies:
+                                    self.anomaly_times.pop(0)
+                                    self.anomaly_values.pop(0)
+                                    # Remove from set as well
+                                    if self.anomaly_times:
+                                        oldest_time = pd.to_datetime(self.anomaly_times[0]) if not isinstance(self.anomaly_times[0], (datetime, pd.Timestamp)) else self.anomaly_times[0]
+                                        existing_times_set.discard(oldest_time)
+                                
+                                self.anomaly_times.append(new_time_dt)
+                                self.anomaly_values.append(new_value)
+                                existing_times_set.add(new_time_dt)
+                                new_count += 1
+                        
+                        self.log(f'Anomaly Detection: Added {new_count} new anomalies (total: {len(self.anomaly_times)}). {len(new_anomaly_times) - new_count} duplicates skipped.', level='Info')
+                        if len(anomalies_df) > len(valid_anomalies):
+                            self.log(f'Anomaly Detection: Filtered out {len(anomalies_df) - len(valid_anomalies)} anomalies that had NaN values', level='Debug')
+                        # Force immediate canvas update to show anomalies
+                        QTimer.singleShot(100, self._update_canvas)
+                    else:
+                        # FIXED: Don't clear existing anomalies if no new valid anomalies found
+                        # Keep previous anomalies visible
+                        self.log(f'Anomaly Detection: No valid anomalies found in this cycle (all had NaN values after matching). Retaining {len(self.anomaly_times)} previous anomalies.', level='Debug')
+                    
+                    # Log detected anomalies with detailed information
+                    num_anomalies = len(anomalies_df)
+                    stats = self.anomaly_detector.get_statistics()
+                    max_diff = anomalies_df['difference'].abs().max()
+                    min_diff = anomalies_df['difference'].abs().min()
+                    avg_diff = anomalies_df['difference'].abs().mean()
+                    
+                    self.log(f'Anomaly Detection: {num_anomalies} anomalies detected. Threshold: {threshold:.2f} nT. Multiplier: {self.anomaly_detector.threshold_multiplier:.2f}', level='Info')
+                    self.log(f'Anomaly Detection: Statistics - Mean error: {stats["mean_error"]:.2f} nT, Std error: {stats["std_error"]:.2f} nT, Samples: {stats["total_samples"]}', level='Info')
+                    self.log(f'Anomaly Detection: Anomaly differences - Max: {max_diff:.2f} nT, Min: {min_diff:.2f} nT, Avg: {avg_diff:.2f} nT', level='Info')
+                else:
+                    # FIXED: Don't clear existing anomalies if no anomalies detected in this cycle
+                    # Keep previous anomalies visible across cycles
+                    stats = self.anomaly_detector.get_statistics()
+                    self.log(f'Anomaly Detection: No anomalies detected in this cycle. Threshold: {threshold:.2f} nT. Mean error: {stats["mean_error"]:.2f} nT. Retaining {len(self.anomaly_times)} previous anomalies.', level='Debug')
+            else:
+                if len(realtime_actual_times) == 0:
+                    self.log('Anomaly Detection: No real-time actual data available for comparison', level='Debug')
+                if len(all_predicted_times) == 0:
+                    self.log('Anomaly Detection: No predicted data available for comparison', level='Debug')
+                    
+        except Exception as e:
+            self.log('Error detecting anomalies', error=e, level='Error')
                 
     def _update_canvas(self):
         # print('updating canvas.. with new line', self._line_new)
@@ -1099,6 +1466,15 @@ class Application(QApplication):
                     self._line_new, = self._dynamic_ax.plot(self.new_x_t, self.new_y_mag_t, color=[0.1, 0.7, 0.2])
                     print('green line created')
                     print('with data', self.new_x_t, self.new_y_mag_t)
+                    # Add cursor tooltips for new data line
+                    if MPLCURSORS_AVAILABLE:
+                        cursor_new = mplcursors.cursor(self._line_new, hover=True)
+                        @cursor_new.connect("add")
+                        def on_add_new(sel):
+                            idx = sel.target.index
+                            if idx < len(self.new_x_t) and idx < len(self.new_y_mag_t):
+                                time_str = pd.to_datetime(self.new_x_t[idx]).strftime('%Y-%m-%d %H:%M:%S') if isinstance(self.new_x_t[idx], (datetime, pd.Timestamp)) else str(self.new_x_t[idx])
+                                sel.annotation.set_text(f'Time: {time_str}\nValue: {self.new_y_mag_t[idx]:.2f} nT')
                     self._save_data(self.x_t + self.new_x_t, self.y_mag_t + self.new_y_mag_t)
             else:
                 # self._line.set_data(self.xdata, self.ydata)
@@ -1126,11 +1502,139 @@ class Application(QApplication):
                 if self.predict_x_t:
                     print('plotting new predict line with data', self.predict_x_t[-1], self.predict_y_t[-1])
                     self._new_predictions_line, = self._dynamic_ax.plot(self.predict_x_t[-1], self.predict_y_t[-1], color=[0.3, 0.1, 0.4])
+                    # Add cursor tooltips for prediction line
+                    if MPLCURSORS_AVAILABLE:
+                        cursor_pred = mplcursors.cursor(self._new_predictions_line, hover=True)
+                        @cursor_pred.connect("add")
+                        def on_add_pred(sel):
+                            idx = sel.target.index
+                            pred_times = self.predict_x_t[-1]
+                            pred_values = self.predict_y_t[-1]
+                            if idx < len(pred_times) and idx < len(pred_values):
+                                time_str = pd.to_datetime(pred_times[idx]).strftime('%Y-%m-%d %H:%M:%S') if isinstance(pred_times[idx], (datetime, pd.Timestamp)) else str(pred_times[idx])
+                                sel.annotation.set_text(f'Time: {time_str}\nPredicted: {pred_values[idx]:.2f} nT')
                     self.predict_last_t_in_plot = self.predict_x_t[-1][-1]
             else:
                 if self.predict_last_t_in_plot < self.predict_x_t[-1][0]:
                     self._new_predictions_line, = self._dynamic_ax.plot(self.predict_x_t[-1], self.predict_y_t[-1], color=[0.3, 0.1, 0.4])
+                    # Add cursor tooltips for new prediction line
+                    if MPLCURSORS_AVAILABLE:
+                        cursor_pred = mplcursors.cursor(self._new_predictions_line, hover=True)
+                        @cursor_pred.connect("add")
+                        def on_add_pred(sel):
+                            idx = sel.target.index
+                            pred_times = self.predict_x_t[-1]
+                            pred_values = self.predict_y_t[-1]
+                            if idx < len(pred_times) and idx < len(pred_values):
+                                time_str = pd.to_datetime(pred_times[idx]).strftime('%Y-%m-%d %H:%M:%S') if isinstance(pred_times[idx], (datetime, pd.Timestamp)) else str(pred_times[idx])
+                                sel.annotation.set_text(f'Time: {time_str}\nPredicted: {pred_values[idx]:.2f} nT')
                     self.predict_last_t_in_plot = self.predict_x_t[-1][-1]
+            
+            # Plot anomalies if any are detected
+            if self.anomaly_times and self.anomaly_values and len(self.anomaly_times) > 0:
+                self.log(f'Anomaly Visualization: Attempting to plot {len(self.anomaly_times)} anomalies', level='Info')
+                # Convert times to proper format if needed (handle datetime objects)
+                try:
+                    # Ensure times are in the right format for matplotlib
+                    if isinstance(self.anomaly_times[0], (datetime, pd.Timestamp)):
+                        # Times are datetime objects - matplotlib can handle them directly
+                        anomaly_times_plot = self.anomaly_times
+                    else:
+                        # Try to convert if they're strings
+                        anomaly_times_plot = [pd.to_datetime(t) if isinstance(t, str) else t for t in self.anomaly_times]
+                    
+                    # Debug: log first few anomaly times and values
+                    if len(anomaly_times_plot) > 0:
+                        self.log(f'Anomaly Visualization: First anomaly - Time: {anomaly_times_plot[0]}, Value: {self.anomaly_values[0]:.2f} nT', level='Info')
+                except Exception as e:
+                    self.log(f'Anomaly Visualization: Error converting times: {e}', level='Error')
+                    anomaly_times_plot = self.anomaly_times
+                
+                # Remove old vertical lines if they exist
+                for vline in self.anomaly_vertical_lines:
+                    try:
+                        vline.remove()
+                    except:
+                        pass
+                self.anomaly_vertical_lines = []
+                
+                for vline in self.anomaly_vertical_lines_static:
+                    try:
+                        vline.remove()
+                    except:
+                        pass
+                self.anomaly_vertical_lines_static = []
+                
+                # Get y-axis limits for vertical lines
+                ylim_dynamic = self._dynamic_ax.get_ylim()
+                ylim_static = self._static_ax.get_ylim()
+                
+                # Create vertical lines at each anomaly time point (only vertical lines, no markers)
+                for anomaly_time in anomaly_times_plot:
+                    # Transparent light red vertical line on dynamic plot
+                    vline_dynamic = self._dynamic_ax.axvline(
+                        x=anomaly_time,
+                        color='lightcoral',  # Light red color
+                        linestyle='-',  # Solid line instead of dashed
+                        linewidth=2,
+                        alpha=0.4,  # More transparent for subtle highlighting
+                        zorder=6  # Above data lines but subtle
+                    )
+                    self.anomaly_vertical_lines.append(vline_dynamic)
+                    
+                    # Transparent light red vertical line on static plot
+                    vline_static = self._static_ax.axvline(
+                        x=anomaly_time,
+                        color='lightcoral',  # Light red color
+                        linestyle='-',  # Solid line instead of dashed
+                        linewidth=2,
+                        alpha=0.4,  # More transparent for subtle highlighting
+                        zorder=6  # Above data lines but subtle
+                    )
+                    self.anomaly_vertical_lines_static.append(vline_static)
+                
+                self.log(f'Anomaly Visualization: Successfully plotted {len(self.anomaly_times)} anomaly vertical lines', level='Info')
+                
+                # Force redraw of both canvases
+                try:
+                    self._dynamic_ax.figure.canvas.draw_idle()
+                    self._static_ax.figure.canvas.draw_idle()
+                except Exception as e:
+                    self.log(f'Anomaly Visualization: Error redrawing canvas: {e}', level='Error')
+            else:
+                # Clear anomalies if none detected - remove vertical lines
+                for vline in self.anomaly_vertical_lines:
+                    try:
+                        vline.remove()
+                    except:
+                        pass
+                self.anomaly_vertical_lines = []
+                
+                for vline in self.anomaly_vertical_lines_static:
+                    try:
+                        vline.remove()
+                    except:
+                        pass
+                self.anomaly_vertical_lines_static = []
+                
+                # Clear any old scatter markers if they exist (shouldn't be created anymore)
+                if self.anomaly_line:
+                    try:
+                        self.anomaly_line.remove()
+                    except:
+                        pass
+                    self.anomaly_line = None
+                if self.anomaly_line_static:
+                    try:
+                        self.anomaly_line_static.remove()
+                    except:
+                        pass
+                    self.anomaly_line_static = None
+                
+                # Force redraw
+                self._dynamic_ax.figure.canvas.draw_idle()
+                self._static_ax.figure.canvas.draw_idle()
+                
         except Exception as e:
             self.log('Error updating canvas', error=e)
                 
