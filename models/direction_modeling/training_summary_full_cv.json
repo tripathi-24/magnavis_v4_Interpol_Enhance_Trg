@@ -1,0 +1,31 @@
+{
+  "created_at_utc": "2026-03-08T08:27:21Z",
+  "dataset": "/Users/kamaltripathi/Documents/CSE@IITK/SEM_IV/Thesis_Work_SEM_IV_17_Feb_26/magnavis_v11_Rest_SameAsV10_Anomaly_Dirn_Model/models/direction_modeling/obs2_second_level_dataset.csv",
+  "n_samples": 4800,
+  "n_groups": 40,
+  "cv_splits": 5,
+  "results_file": "/Users/kamaltripathi/Documents/CSE@IITK/SEM_IV/Thesis_Work_SEM_IV_17_Feb_26/magnavis_v11_Rest_SameAsV10_Anomaly_Dirn_Model/models/direction_modeling/model_results_full_cv.csv",
+  "saved_models": {
+    "HistGBR_MultiOutput": "/Users/kamaltripathi/Documents/CSE@IITK/SEM_IV/Thesis_Work_SEM_IV_17_Feb_26/magnavis_v11_Rest_SameAsV10_Anomaly_Dirn_Model/models/direction_modeling/model_HistGBR_MultiOutput_full.joblib",
+    "RandomForest": "/Users/kamaltripathi/Documents/CSE@IITK/SEM_IV/Thesis_Work_SEM_IV_17_Feb_26/magnavis_v11_Rest_SameAsV10_Anomaly_Dirn_Model/models/direction_modeling/model_RandomForest_full.joblib",
+    "KNN": "/Users/kamaltripathi/Documents/CSE@IITK/SEM_IV/Thesis_Work_SEM_IV_17_Feb_26/magnavis_v11_Rest_SameAsV10_Anomaly_Dirn_Model/models/direction_modeling/model_KNN_full.joblib",
+    "ExtraTrees": "/Users/kamaltripathi/Documents/CSE@IITK/SEM_IV/Thesis_Work_SEM_IV_17_Feb_26/magnavis_v11_Rest_SameAsV10_Anomaly_Dirn_Model/models/direction_modeling/model_ExtraTrees_full.joblib",
+    "MLP": "/Users/kamaltripathi/Documents/CSE@IITK/SEM_IV/Thesis_Work_SEM_IV_17_Feb_26/magnavis_v11_Rest_SameAsV10_Anomaly_Dirn_Model/models/direction_modeling/model_MLP_full.joblib"
+  },
+  "best_model_name": "ExtraTrees",
+  "best_model_file": "/Users/kamaltripathi/Documents/CSE@IITK/SEM_IV/Thesis_Work_SEM_IV_17_Feb_26/magnavis_v11_Rest_SameAsV10_Anomaly_Dirn_Model/models/direction_modeling/best_direction_model.joblib",
+  "best_metrics": {
+    "model": "ExtraTrees",
+    "n_samples_full_train": 4800,
+    "n_groups": 40,
+    "cv_splits": 5,
+    "azimuth_mae_deg_mean": 25.772262276915665,
+    "azimuth_mae_deg_std": 5.040539387592333,
+    "inclination_mae_deg_mean": 0.6620250000000005,
+    "inclination_mae_deg_std": 0.6134423113826849,
+    "distance_mae_m_mean": 0.7930666666666667,
+    "distance_mae_m_std": 0.10216576997125523,
+    "direction_mae_deg_mean": 13.217143638457836,
+    "direction_mae_deg_std": 2.3964040618339566
+  }
+}
