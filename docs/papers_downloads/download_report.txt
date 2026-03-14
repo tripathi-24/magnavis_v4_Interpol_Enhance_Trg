@@ -1,0 +1,8 @@
+- Bulusu2025GriddedIndia: downloaded -> docs/papers_downloads/Bulusu2025GriddedIndia.pdf | https://account.datascience.codata.org/index.php/up-j-dsj/article/download/1788/1427 | Downloaded PDF
+- Rawat2024LAMI1: landing_saved -> docs/papers_downloads/Rawat2024LAMI1_landing.html | https://link.springer.com/article/10.1007/s12040-024-02393-1?error=cookies_not_supported&code=81d57e5d-76a3-453d-8a34-89893b18181a | Non-PDF (text/html; charset=utf-8)
+- Potharaju2022IntermagnetPipeline: downloaded -> docs/papers_downloads/Potharaju2022IntermagnetPipeline.pdf | https://www.nature.com/articles/s41598-022-13820-y.pdf?error=cookies_not_supported&code=ccb6bcdd-3cd8-4474-a266-a906bfad550d | Downloaded PDF
+- Kumar2021MagneticInversionPSO: landing_saved -> docs/papers_downloads/Kumar2021MagneticInversionPSO_landing.html | https://www.earthdoc.org/content/papers/10.3997/2214-4609.202112801 | Non-PDF (text/html;charset=utf-8)
+- Upendran2022GlobalGeomagneticDL: failed -> None | None | Last error: HTTP Error 403: Forbidden
+- Wu2021VectorMADAttention: failed -> None | None | Last error: HTTP Error 403: Forbidden
+- Wintoft2021RNNGeomagnetic: downloaded -> docs/papers_downloads/Wintoft2021RNNGeomagnetic.pdf | https://public-pages-files-2025.frontiersin.org/journals/astronomy-and-space-sciences/articles/10.3389/fspas.2021.664483/pdf | Downloaded PDF
+- Wang2022DNNMAD: failed -> None | None | Last error: HTTP Error 403: Forbidden

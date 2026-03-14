@@ -1,0 +1,105 @@
+% Anomaly direction calculation — simple explanation (UK English)
+% Requires: amsmath, amssymb, geometry (optional)
+
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{parskip}
+
+\title{How We Work Out the Direction of a Magnetic Anomaly}
+\author{Magnavis application}
+\date{}
+
+\begin{document}
+\maketitle
+
+\subsubsection{\textbf{What we are trying to do}}
+
+When the system detects a magnetic anomaly (a short-lived change in the Earth's magnetic field), we want to know \textbf{which way} that change is coming from, as seen from the observatory. We describe this direction by two angles: \textbf{azimuth} (compass-like direction in the horizontal plane) and \textbf{inclination} (angle above or below the horizontal). The 3D plot in the application shows this direction as a single arrow from the centre of the observatory.
+
+\subsubsection{\textbf{What we measure}}
+
+At each observatory we use three sensors that measure the magnetic field along three fixed directions:
+\begin{itemize}
+  \item \textbf{Sensor 1 (S1)} and \textbf{Sensor 2 (S2)} lie in the horizontal plane (e.g. S1 points West, S2 points South at Observatory 2).
+  \item \textbf{Sensor 3 (S3)} points vertically upward.
+\end{itemize}
+Each sensor gives a value in nanotesla (nT). We call these three values at the time of the anomaly \(S_1\), \(S_2\), and \(S_3\).
+
+\subsubsection{\textbf{Baseline (normal level)}}
+
+To see the \emph{change} caused by the anomaly, we need a reference level for each sensor — the level when there is no anomaly. We take this from an earlier, quiet period: we use the \textbf{median} of each sensor's values over that period. We call these baseline values \(B_1\), \(B_2\), and \(B_3\).
+
+\subsubsection{\textbf{Perturbation (the change)}}
+
+The anomaly is described by how much each component has changed from its baseline:
+\begin{align}
+  \Delta S_1 &= S_1 - B_1, \\
+  \Delta S_2 &= S_2 - B_2, \\
+  \Delta S_3 &= S_3 - B_3.
+\end{align}
+These three numbers form the \textbf{perturbation vector}. Its overall size (strength of the anomaly) is
+\begin{equation}
+  |\Delta\mathbf{B}| = \sqrt{(\Delta S_1)^2 + (\Delta S_2)^2 + (\Delta S_3)^2} \quad \text{(in nT)}.
+\end{equation}
+This is the value shown as ``\(|\Delta B|\)'' in the application.
+
+\subsubsection{\textbf{Horizontal and vertical parts}}
+
+We split the perturbation into a horizontal part and a vertical part:
+\begin{itemize}
+  \item The horizontal part uses only S1 and S2. Its length is
+    \begin{equation}
+      H = \sqrt{(\Delta S_1)^2 + (\Delta S_2)^2}.
+    \end{equation}
+  \item The vertical part is simply \(\Delta S_3\) (positive = upward, negative = downward).
+\end{itemize}
+If \(H\) is very close to zero, the anomaly is almost purely vertical; in that case we only report inclination (up or down) and do not give an azimuth.
+
+\subsubsection{\textbf{Azimuth (horizontal direction)}}
+
+The \textbf{azimuth} is the angle in the horizontal plane, measured from the direction of Sensor 1 and increasing towards the direction of Sensor 2. We compute it as
+\begin{equation}
+  \text{azimuth (degrees)} = \operatorname{atan2}(\Delta S_2,\, \Delta S_1),
+\end{equation}
+converted to degrees and then adjusted so it lies between \(0°\) and \(360°\). Here:
+\begin{itemize}
+  \item \(0°\) means the horizontal perturbation points along Sensor 1 (e.g. West at Observatory 2).
+  \item \(90°\) means it points along Sensor 2 (e.g. South at Observatory 2).
+\end{itemize}
+The application can also convert this angle into a compass label (e.g. West, South-West).
+
+\subsubsection{\textbf{Inclination (angle above or below horizontal)}}
+
+The \textbf{inclination} tells us how much the perturbation tilts upward or downward. We compute it as
+\begin{equation}
+  \text{inclination (degrees)} = \operatorname{atan2}(\Delta S_3,\, H).
+\end{equation}
+\begin{itemize}
+  \item Positive inclination: the perturbation has an upward component.
+  \item Negative inclination: it has a downward component.
+  \item \(0°\): purely horizontal; \(90°\): straight up; \(-90°\): straight down.
+\end{itemize}
+
+\subsubsection{\textbf{From angles to the 3D arrow}}
+
+The 3D plot shows the direction as a \textbf{unit vector} (an arrow of length 1) from the centre of the observatory. We build this from the azimuth and inclination:
+\begin{itemize}
+  \item The horizontal part of the arrow has length \(\cos(\text{inclination})\) and direction given by the azimuth.
+  \item The vertical part has length \(\sin(\text{inclination})\) (positive up, negative down).
+\end{itemize}
+The arrow’s components along East, North, and Up are then drawn on the 3D axes. The numbers \(-1\) to \(1\) on each axis are these components: they indicate how much of the direction lies along East, North, or Up. The red arrow in the figure is this unit vector for the \textbf{latest} anomaly from Observatory 2; older anomalies are still recorded in the log.
+
+\subsubsection{\textbf{Summary}}
+
+\begin{enumerate}
+  \item We take the three sensor readings at the time of the anomaly and subtract the baseline (median over a quiet period) to get \(\Delta S_1\), \(\Delta S_2\), \(\Delta S_3\).
+  \item We compute the strength \(|\Delta\mathbf{B}| = \sqrt{(\Delta S_1)^2 + (\Delta S_2)^2 + (\Delta S_3)^2}\).
+  \item We work out the horizontal length \(H = \sqrt{(\Delta S_1)^2 + (\Delta S_2)^2}\).
+  \item Azimuth = \(\operatorname{atan2}(\Delta S_2,\, \Delta S_1)\) (horizontal direction).
+  \item Inclination = \(\operatorname{atan2}(\Delta S_3,\, H)\) (angle above or below horizontal).
+  \item We convert azimuth and inclination into a unit vector and show it as the red arrow in the 3D direction plot.
+\end{enumerate}
+
+\end{document}

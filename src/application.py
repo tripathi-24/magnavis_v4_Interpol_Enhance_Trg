@@ -60,7 +60,7 @@ from pickle import NONE
 from PyQt5.uic.Compiler.qtproxies import QtWidgets
 
 from data_convert_now import get_timeseries_magnetic_data
-# from predictor_ai import LSTMPredictor
+# from predictor_ai import GRUPredictor
 from Anomaly_detector import AnomalyDetector
 
 APP_BASE = os.path.dirname(__file__)
@@ -104,12 +104,19 @@ class SessionDataManager(QObject):
             if new:
                 # print('new ...., getting data')
                 api_df_new = get_timeseries_magnetic_data(session_id, hours=hours, start_time=start_time)
-                # print('got data', api_df_new)
+                if api_df_new is None or api_df_new.empty:
+                    api_df_new = pd.DataFrame(columns=['time_H', 'mag_H_nT'])
             else:
                 api_df = get_timeseries_magnetic_data(session_id, hours=hours, start_time=start_time)
+                if api_df is None or api_df.empty:
+                    api_df = pd.DataFrame(columns=['time_H', 'mag_H_nT'])
             logging.info('data fetched from api in non blocking mode')
         except Exception as e:
-            logging.error('issue fetching api data', str(e))
+            logging.error(f'issue fetching api data: {e}')
+            if new:
+                api_df_new = pd.DataFrame(columns=['time_H', 'mag_H_nT'])
+            else:
+                api_df = pd.DataFrame(columns=['time_H', 'mag_H_nT'])
         self.updatedData.emit()
         mutex.unlock()
         self.finished.emit()
@@ -306,6 +313,33 @@ class MagTimeSeriesWidget(timeSerBase, timeSerForm):
         
         # Add to the grid layout (add after row 3, column 5)
         self.gridLayout.addLayout(anomaly_layout, 4, 0, 1, 5)
+
+        # Add Training Window Control (minutes; 0 = full history)
+        train_window_layout = QHBoxLayout()
+        train_window_label = QLabel("Model Training Window (minutes, 0 = all):")
+        train_window_layout.addWidget(train_window_label)
+
+        self.train_window_spinbox = QDoubleSpinBox()
+        self.train_window_spinbox.setMinimum(0)
+        self.train_window_spinbox.setMaximum(100000)  # effectively unbounded
+        self.train_window_spinbox.setSingleStep(5)
+        self.train_window_spinbox.setDecimals(0)
+        self.train_window_spinbox.setValue(0)  # default = full history
+        self.train_window_spinbox.setToolTip("Use 0 for full history; set minutes to limit training window.")
+        train_window_layout.addWidget(self.train_window_spinbox)
+
+        self.train_window_spinbox.valueChanged.connect(self.on_train_window_changed)
+
+        # Place below anomaly control
+        self.gridLayout.addLayout(train_window_layout, 5, 0, 1, 5)
+
+        # Status badge for training window + time-aware flag
+        status_layout = QHBoxLayout()
+        self.train_window_status_label = QLabel()
+        self.train_window_status_label.setStyleSheet("color: #444;")
+        status_layout.addWidget(self.train_window_status_label)
+        self.gridLayout.addLayout(status_layout, 6, 0, 1, 5)
+        self.update_train_window_status()
         
         # if refresh_rate:
         #     self.timerRefresh = QtCore.QTimer()
@@ -339,6 +373,29 @@ class MagTimeSeriesWidget(timeSerBase, timeSerForm):
             # Force canvas update to show new anomalies (with small delay to ensure detection completes)
             if hasattr(self.app, '_update_canvas'):
                 QTimer.singleShot(200, self.app._update_canvas)
+
+    def on_train_window_changed(self, value):
+        """Called when user changes the LSTM training window (minutes). 0 means use full history."""
+        try:
+            if value <= 0:
+                self.app.train_window_minutes = None
+                self.app.log('Training window set to full history (0 minutes).', level='Info')
+            else:
+                self.app.train_window_minutes = int(value)
+                self.app.log(f'Training window set to last {int(value)} minutes.', level='Info')
+            self.update_train_window_status()
+        except Exception as e:
+            self.app.log(f'Error setting training window: {e}', level='Error')
+
+    def update_train_window_status(self):
+        """Update UI badge to reflect training window minutes and time-aware status."""
+        minutes = getattr(self.app, 'train_window_minutes', None)
+        if minutes is None or minutes <= 0:
+            window_text = "Training window: all data"
+        else:
+            window_text = f"Training window: last {int(minutes)} min"
+        # Daily sin/cos time-of-day features are always used; yearly is optional elsewhere.
+        self.train_window_status_label.setText(f"{window_text} | Time-of-day features: on (daily sin/cos)")
 
 
 appBase, appForm = uic.loadUiType(os.path.join(APP_BASE, 'ui_files', 'ui_ApplicationWindow.ui'))
@@ -755,14 +812,32 @@ class ApplicationWindow(appBase, appForm):
                     <html><head><meta name="qrichtext" content="1" /><style type="text/css">
                     p, li { white-space: pre-wrap; }</style></head>'''+ \
                     f'''<body style=" font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;"><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">{now} : {msg}</p></body></html>''')
+                    self._append_log_to_file(now, msg, level, error)
                     return
                 self.textEditLog.setHtml(html_in + f'{now} : {msg}')
-                # store in file as well for the session
             if level in ['Error'] or error!= None:
                 self.textEditLog.setHtml(html_in + f'{now} : {msg}. Detailed error:<br> {str(error)}')
+            # Append to session log file for offline analysis
+            self._append_log_to_file(now, msg, level, error)
             # print('-->', self.textEditLog.toHtml())
         except Exception as e:
             print('error while logging:', e)
+
+    def _append_log_to_file(self, now, msg, level='Info', error=None):
+        """Append this log line to the session app.log file for offline analysis."""
+        try:
+            if not getattr(self, '_app', None) or not getattr(self._app, 'session_id', None):
+                return
+            log_dir = os.path.join(APP_BASE, 'sessions', self._app.session_id)
+            os.makedirs(log_dir, exist_ok=True)
+            log_path = os.path.join(log_dir, 'app.log')
+            line = msg if isinstance(msg, str) else str(msg)
+            if error is not None:
+                line = line + " | Error: " + str(error)
+            with open(log_path, 'a', encoding='utf-8') as f:
+                f.write(f"{now}\t[{level}]\t{line}\n")
+        except Exception:
+            pass  # do not break UI logging if file write fails
 
 class Source(object):
     def __init__(self):
@@ -836,7 +911,7 @@ class Application(QApplication):
     def __init__(self, arg):
         super().__init__(arg)
         """ Application Constructor"""
-        self.splash = QSplashScreen(QPixmap(os.path.join(APP_BASE, 'splashscreen_magnav.png')))
+        self.splash = QSplashScreen(QPixmap(os.path.join(APP_BASE, '..', 'static_observatory_@IITK.png')))
         self.splash.show()
         self.splash.showMessage("\n    Loaded:\n    modules")
         self._version = "0.1" 
@@ -853,6 +928,7 @@ class Application(QApplication):
         self.projectDir = "" #self.preferencesData.projectDir #os.getcwd()
         self.session_id = str(uuid.uuid4())
         self.predictor_input_file = None
+        self.train_window_minutes = None  # Optional LSTM training window (minutes); None = full history
         
         ## Init Managers
         self._dataSourceManager = DataSourceManager(self)
@@ -880,11 +956,11 @@ class Application(QApplication):
 
         # self.predictions = {
         #         'simple': simple_predict,
-        #         'ai_model_1': LSTMPredictor
+        #         'ai_model_1': GRUPredictor
         #     }
 
         self.splash.showMessage("\n    Loaded:\n    modules\n    loading predictor..")
-        # self.predictor = LSTMPredictor(window_size=5, initial_train_points=3400,
+        # self.predictor = GRUPredictor(window_size=5, initial_train_points=3400,
         #                       epochs_per_update=5, learning_rate=0.001, update_training=True)
 
         self.world_extent = None
@@ -897,6 +973,7 @@ class Application(QApplication):
         self.predict_y_t = []
         self.predict_last_t_in_plot = None
         self.prediction_process = None
+        self._new_predictions_line = None
         
         # Initialize anomaly detector for real-time anomaly detection
         self.anomaly_detector = AnomalyDetector(threshold_multiplier=2.5, min_samples_for_threshold=10)
@@ -1165,20 +1242,35 @@ class Application(QApplication):
             # Use the current Python interpreter (cross-platform)
             python_exe = sys.executable
             python_app_file = os.path.join(APP_BASE, 'predictor_ai.py')
+
+            # Use session folder as working directory so relative paths resolve correctly
+            work_dir = os.path.dirname(input_file) if input_file else APP_BASE
             
             # Construct command as a list for better cross-platform compatibility
             command = [python_exe, python_app_file, input_file]
             
-            self.log(f'Starting prediction process: {" ".join(command)}', level='Info')
+            self.log(f'Starting prediction process: {" ".join(command)} (cwd={work_dir})', level='Info')
             self.predictor_input_file = input_file
             
-            # Use subprocess.Popen with list argument (safer, cross-platform)
-            # shell=False is safer and works on all platforms
+            # Capture stdout/stderr to files in the session folder for debugging
+            stdout_path = os.path.join(work_dir, 'predict_stdout.log')
+            stderr_path = os.path.join(work_dir, 'predict_stderr.log')
+            stdout_f = open(stdout_path, 'w')
+            stderr_f = open(stderr_path, 'w')
+
+            # Pass training window to predictor via environment variable if set
+            env = os.environ.copy()
+            if self.train_window_minutes:
+                env["TRAIN_WINDOW_MINUTES"] = str(self.train_window_minutes)
+            else:
+                env.pop("TRAIN_WINDOW_MINUTES", None)
+
             self.prediction_process = subprocess.Popen(
                 command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                cwd=APP_BASE  # Set working directory to APP_BASE
+                stdout=stdout_f,
+                stderr=stderr_f,
+                cwd=work_dir,  # Set working directory to session dir
+                env=env
             )
             self.log(f'Prediction process started (PID: {self.prediction_process.pid})', level='Info')
         except Exception as e:
@@ -1201,17 +1293,14 @@ class Application(QApplication):
             print('after starting thread..')
         else:
             mag_t_df = api_df_new
-            # print('head', mag_t_df.head())
-            new_x_t = mag_t_df['time_H'].tolist()
-            # print('new_x_t', new_x_t)
-            new_y_mag_t = mag_t_df['mag_H_nT'].tolist()
-            if new_x_t and new_y_mag_t and len(new_x_t)>1 and len(new_y_mag_t)>1:
-                print('got new data', new_x_t[1:])
-                self.new_x_t = self.new_x_t + new_x_t[1:]
-                self.new_y_mag_t = self.new_y_mag_t + new_y_mag_t[1:]
-                self.needs_update_lims = True
-                # self._update_canvas()
-                # print('new data found, update graph..', new_x_t, 'and', new_y_mag_t)
+            if mag_t_df is not None and not mag_t_df.empty and 'time_H' in mag_t_df.columns and 'mag_H_nT' in mag_t_df.columns:
+                new_x_t = mag_t_df['time_H'].tolist()
+                new_y_mag_t = mag_t_df['mag_H_nT'].tolist()
+                if new_x_t and new_y_mag_t and len(new_x_t)>1 and len(new_y_mag_t)>1:
+                    print('got new data', new_x_t[1:])
+                    self.new_x_t = self.new_x_t + new_x_t[1:]
+                    self.new_y_mag_t = self.new_y_mag_t + new_y_mag_t[1:]
+                    self.needs_update_lims = True
             # else:
             #     print('no new data')
         self._update_predictions_data()
@@ -1233,7 +1322,15 @@ class Application(QApplication):
                     return
                 elif return_code != 0:
                     # Process finished with error
-                    stderr_output = self.prediction_process.stderr.read().decode('utf-8', errors='ignore') if self.prediction_process.stderr else "No error output"
+                    work_dir = os.path.dirname(predict_input)
+                    stderr_log = os.path.join(work_dir, 'predict_stderr.log')
+                    stderr_output = ''
+                    try:
+                        if os.path.exists(stderr_log):
+                            with open(stderr_log, 'r') as ef:
+                                stderr_output = ef.read()
+                    except Exception as e_read:
+                        stderr_output = f'Failed to read stderr log: {e_read}'
                     self.log(f'Prediction process failed with return code {return_code}. Error: {stderr_output}', level='Error')
                     self.prediction_process = None
                     self.predict_app_started = False
@@ -1248,29 +1345,59 @@ class Application(QApplication):
                 __x = predictions['x'].to_list()
                 __y = predictions['y'].to_list()
                 if len(__x)>0:
-                    if len(self.predict_x_t)==0: # first prediction
-                        self.predict_x_t.append(__x) # list append to list (list of list)
-                        self.predict_y_t.append(__y) # list append to list (list of list)
-                        self.log(f'First prediction loaded: {len(__x)} points', level='Info')
-                        if self.prediction_process:
-                            self.prediction_process = None
-                            self.predict_app_started = False
-                    elif self.predict_x_t[-1][-1] < __x[0]: #new prediction confirmed
-                        self.predict_x_t.append(__x) # list append to list (list of list)
-                        self.predict_y_t.append(__y) # list append to list (list of list)
-                        self.log(f'New prediction loaded: {len(__x)} points', level='Info')
-                        if self.prediction_process:
-                            self.prediction_process = None
-                            self.predict_app_started = False
+                    # Merge with existing predictions to keep a continuous, deduped time series
+                    existing_times = []
+                    existing_values = []
+                    if self.predict_x_t and self.predict_y_t:
+                        for pt, pv in zip(self.predict_x_t, self.predict_y_t):
+                            existing_times.extend(pt)
+                            existing_values.extend(pv)
+
+                    # Preserve earlier predictions: do not overwrite existing timestamps
+                    merged = {}
+                    for t, v in zip(existing_times, existing_values):
+                        merged[t] = v
+                    skipped_dupes = 0
+                    for t, v in zip(__x, __y):
+                        if t in merged:
+                            skipped_dupes += 1
+                            continue
+                        merged[t] = v
+
+                    merged_times = sorted(merged.keys())
+                    merged_values = [merged[t] for t in merged_times]
+
+                    self.predict_x_t = [merged_times]
+                    self.predict_y_t = [merged_values]
+                    msg = f'Loaded latest prediction: {len(__x)} points. Combined prediction series now {len(merged_times)} points.'
+                    if skipped_dupes:
+                        msg += f' Preserved {skipped_dupes} existing timestamps (no overwrites).'
+                    self.log(msg, level='Info')
+                    # Force redraw of prediction line on next canvas update
+                    self.predict_last_t_in_plot = None
+                    if self.prediction_process:
+                        self.prediction_process = None
+                        self.predict_app_started = False
                     
                     # Perform anomaly detection when we have both actual and predicted data
                     self._detect_anomalies()
+                    # Trigger immediate canvas update to show new predictions
+                    self._update_canvas()
             else:
                 # Output file doesn't exist yet - process might still be running or failed
                 if self.prediction_process and self.prediction_process.poll() is None:
                     self.log(f'Waiting for prediction output file: {predict_output_file}', level='Debug')
                 else:
-                    self.log(f'Prediction output file not found: {predict_output_file}. Process may have failed.', level='Warning')
+                    work_dir = os.path.dirname(predict_input) if predict_input else APP_BASE
+                    stderr_log = os.path.join(work_dir, 'predict_stderr.log')
+                    stderr_output = ''
+                    try:
+                        if os.path.exists(stderr_log):
+                            with open(stderr_log, 'r') as ef:
+                                stderr_output = ef.read()
+                    except Exception as e_read:
+                        stderr_output = f'Failed to read stderr log: {e_read}'
+                    self.log(f'Prediction output file not found: {predict_output_file}. Process may have failed. Stderr: {stderr_output}', level='Warning')
                             
         except Exception as e:
             self.log('Error updating predictions data', error=e, level='Error')
@@ -1281,6 +1408,11 @@ class Application(QApplication):
             if hasattr(self, 'timeSerWidget') and hasattr(self.timeSerWidget, 'threshold_spinbox') and hasattr(self, 'anomaly_detector'):
                 self.timeSerWidget.threshold_spinbox.setValue(self.anomaly_detector.threshold_multiplier)
                 self.log(f'Anomaly Detection: Threshold control initialized with value {self.anomaly_detector.threshold_multiplier:.2f}', level='Debug')
+            if hasattr(self, 'timeSerWidget') and hasattr(self.timeSerWidget, 'train_window_spinbox'):
+                if self.train_window_minutes:
+                    self.timeSerWidget.train_window_spinbox.setValue(self.train_window_minutes)
+                else:
+                    self.timeSerWidget.train_window_spinbox.setValue(0)
         except Exception as e:
             self.log(f'Error syncing threshold spinbox: {e}', level='Error')
     
@@ -1461,6 +1593,8 @@ class Application(QApplication):
     def _update_canvas(self):
         # print('updating canvas.. with new line', self._line_new)
         try:
+            if not hasattr(self, '_new_predictions_line'):
+                self._new_predictions_line = None
             if not self._line_new:
                 if self.new_x_t and self.new_y_mag_t:
                     self._line_new, = self._dynamic_ax.plot(self.new_x_t, self.new_y_mag_t, color=[0.1, 0.7, 0.2])
@@ -1498,37 +1632,24 @@ class Application(QApplication):
                 self._static_line.figure.canvas.draw_idle()
                 # print('canvas updated')
             
-            if not self.predict_last_t_in_plot:
-                if self.predict_x_t:
-                    print('plotting new predict line with data', self.predict_x_t[-1], self.predict_y_t[-1])
-                    self._new_predictions_line, = self._dynamic_ax.plot(self.predict_x_t[-1], self.predict_y_t[-1], color=[0.3, 0.1, 0.4])
-                    # Add cursor tooltips for prediction line
+            # Always (re)draw predictions from the merged series
+            if self.predict_x_t and self.predict_y_t:
+                pred_times = self.predict_x_t[-1]
+                pred_values = self.predict_y_t[-1]
+                if not self._new_predictions_line:
+                    self._new_predictions_line, = self._dynamic_ax.plot(pred_times, pred_values, color=[0.3, 0.1, 0.4])
                     if MPLCURSORS_AVAILABLE:
                         cursor_pred = mplcursors.cursor(self._new_predictions_line, hover=True)
                         @cursor_pred.connect("add")
                         def on_add_pred(sel):
                             idx = sel.target.index
-                            pred_times = self.predict_x_t[-1]
-                            pred_values = self.predict_y_t[-1]
                             if idx < len(pred_times) and idx < len(pred_values):
                                 time_str = pd.to_datetime(pred_times[idx]).strftime('%Y-%m-%d %H:%M:%S') if isinstance(pred_times[idx], (datetime, pd.Timestamp)) else str(pred_times[idx])
                                 sel.annotation.set_text(f'Time: {time_str}\nPredicted: {pred_values[idx]:.2f} nT')
-                    self.predict_last_t_in_plot = self.predict_x_t[-1][-1]
-            else:
-                if self.predict_last_t_in_plot < self.predict_x_t[-1][0]:
-                    self._new_predictions_line, = self._dynamic_ax.plot(self.predict_x_t[-1], self.predict_y_t[-1], color=[0.3, 0.1, 0.4])
-                    # Add cursor tooltips for new prediction line
-                    if MPLCURSORS_AVAILABLE:
-                        cursor_pred = mplcursors.cursor(self._new_predictions_line, hover=True)
-                        @cursor_pred.connect("add")
-                        def on_add_pred(sel):
-                            idx = sel.target.index
-                            pred_times = self.predict_x_t[-1]
-                            pred_values = self.predict_y_t[-1]
-                            if idx < len(pred_times) and idx < len(pred_values):
-                                time_str = pd.to_datetime(pred_times[idx]).strftime('%Y-%m-%d %H:%M:%S') if isinstance(pred_times[idx], (datetime, pd.Timestamp)) else str(pred_times[idx])
-                                sel.annotation.set_text(f'Time: {time_str}\nPredicted: {pred_values[idx]:.2f} nT')
-                    self.predict_last_t_in_plot = self.predict_x_t[-1][-1]
+                else:
+                    self._new_predictions_line.set_data(pred_times, pred_values)
+                # Update last prediction endpoint
+                self.predict_last_t_in_plot = pred_times[-1]
             
             # Plot anomalies if any are detected
             if self.anomaly_times and self.anomaly_values and len(self.anomaly_times) > 0:

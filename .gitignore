@@ -11,3 +11,7 @@ venv/
 
 # Runtime / Streamlit sessions
 src/sessions/
+
+# Local logs and caches
+*.log
+src/.cache/

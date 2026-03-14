@@ -1,0 +1,66 @@
+[
+  {
+    "key": "Bulusu2025GriddedIndia",
+    "doi": "10.5334/dsj-2025-010",
+    "saved_file": "docs/papers_downloads/Bulusu2025GriddedIndia.pdf",
+    "source_url": "https://account.datascience.codata.org/index.php/up-j-dsj/article/download/1788/1427",
+    "status": "downloaded",
+    "notes": "Downloaded PDF"
+  },
+  {
+    "key": "Rawat2024LAMI1",
+    "doi": "10.1007/s12040-024-02393-1",
+    "saved_file": "docs/papers_downloads/Rawat2024LAMI1_landing.html",
+    "source_url": "https://link.springer.com/article/10.1007/s12040-024-02393-1?error=cookies_not_supported&code=81d57e5d-76a3-453d-8a34-89893b18181a",
+    "status": "landing_saved",
+    "notes": "Non-PDF (text/html; charset=utf-8)"
+  },
+  {
+    "key": "Potharaju2022IntermagnetPipeline",
+    "doi": "10.1038/s41598-022-13820-y",
+    "saved_file": "docs/papers_downloads/Potharaju2022IntermagnetPipeline.pdf",
+    "source_url": "https://www.nature.com/articles/s41598-022-13820-y.pdf?error=cookies_not_supported&code=ccb6bcdd-3cd8-4474-a266-a906bfad550d",
+    "status": "downloaded",
+    "notes": "Downloaded PDF"
+  },
+  {
+    "key": "Kumar2021MagneticInversionPSO",
+    "doi": "10.3997/2214-4609.202112801",
+    "saved_file": "docs/papers_downloads/Kumar2021MagneticInversionPSO_landing.html",
+    "source_url": "https://www.earthdoc.org/content/papers/10.3997/2214-4609.202112801",
+    "status": "landing_saved",
+    "notes": "Non-PDF (text/html;charset=utf-8)"
+  },
+  {
+    "key": "Upendran2022GlobalGeomagneticDL",
+    "doi": "10.1029/2022SW003045",
+    "saved_file": null,
+    "source_url": null,
+    "status": "failed",
+    "notes": "Last error: HTTP Error 403: Forbidden"
+  },
+  {
+    "key": "Wu2021VectorMADAttention",
+    "doi": "10.3390/app112311533",
+    "saved_file": null,
+    "source_url": null,
+    "status": "failed",
+    "notes": "Last error: HTTP Error 403: Forbidden"
+  },
+  {
+    "key": "Wintoft2021RNNGeomagnetic",
+    "doi": "10.3389/fspas.2021.664483",
+    "saved_file": "docs/papers_downloads/Wintoft2021RNNGeomagnetic.pdf",
+    "source_url": "https://public-pages-files-2025.frontiersin.org/journals/astronomy-and-space-sciences/articles/10.3389/fspas.2021.664483/pdf",
+    "status": "downloaded",
+    "notes": "Downloaded PDF"
+  },
+  {
+    "key": "Wang2022DNNMAD",
+    "doi": "10.1049/smt2.12084",
+    "saved_file": null,
+    "source_url": null,
+    "status": "failed",
+    "notes": "Last error: HTTP Error 403: Forbidden"
+  }
+]

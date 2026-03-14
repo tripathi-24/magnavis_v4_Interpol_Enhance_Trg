@@ -44,3 +44,17 @@ or absolute filename
 ~~~~
 python c:/Users/DELL/Desktop/Projects/quantum/magnavis/src/application.py
 ~~~~
+
+For the multi-sensor DB/CSV workflow (pre-trained GRU, anomaly direction, triangulation):
+```
+python src/application_temp.py
+```
+
+### 4. Logs for offline analysis
+When you run the application, all messages that appear in the on-screen log are also written to a session log file:
+- **Application log:** `src/sessions/<session_id>/app.log`  
+  One line per message: timestamp, level (Info/Warning/Error), and message text. The session id is shown in the log at startup (e.g. `Session id "abc-123-..."`).
+- **Predictor logs (per sensor):** `src/sessions/<session_id>/<sensor_id>/predict_stdout.log` and `predict_stderr.log`  
+  Stdout/stderr from the GRU predictor subprocess.
+
+Use these files for offline analysis and debugging.

@@ -11,6 +11,7 @@ This module implements a statistical anomaly detection system that:
 
 import numpy as np  # For numerical operations (mean, std, etc.)
 import pandas as pd  # For data manipulation and time-series operations
+from datetime import datetime, timedelta
 
 
 class AnomalyDetector:
@@ -24,7 +25,7 @@ class AnomalyDetector:
     - Adapts to changing conditions by keeping only recent error history
     """
     
-    def __init__(self, threshold_multiplier=2.5, min_samples_for_threshold=10):
+    def __init__(self, threshold_multiplier=2.5, min_samples_for_threshold=10, freeze_duration_minutes=15):
         """
         Initialize the anomaly detector with configuration parameters.
         
@@ -46,6 +47,11 @@ class AnomalyDetector:
         # Minimum number of error samples needed before we can calculate statistics
         # Too few samples would give unreliable statistics
         self.min_samples_for_threshold = min_samples_for_threshold
+
+        # Freeze threshold for a short window after detecting the first anomaly
+        self.freeze_duration_minutes = freeze_duration_minutes
+        self.freeze_until = None
+        self.frozen_threshold = None
         
         # List to store all historical prediction errors (absolute differences)
         # This grows as we compare more predictions with actual data
@@ -192,7 +198,17 @@ class AnomalyDetector:
         
         # Step 5: Update our error history for threshold calculation
         # We keep track of all prediction errors to learn what's "normal"
-        if len(merged) > 0:
+        max_time = merged['time'].max() if len(merged) > 0 else None
+        freeze_active = False
+        if self.freeze_until is not None and max_time is not None:
+            if max_time <= self.freeze_until:
+                freeze_active = True
+            else:
+                # Freeze window expired
+                self.freeze_until = None
+                self.frozen_threshold = None
+
+        if len(merged) > 0 and not freeze_active:
             # Add all new errors to our history
             self.prediction_errors.extend(merged['abs_difference'].tolist())
             
@@ -208,7 +224,7 @@ class AnomalyDetector:
         # Step 6: Calculate the anomaly threshold
         # The threshold determines what error value is considered "too large" (anomalous)
         # IMPORTANT: This uses self.threshold_multiplier which can be changed dynamically
-        if len(self.prediction_errors) >= self.min_samples_for_threshold:
+        if not freeze_active and len(self.prediction_errors) >= self.min_samples_for_threshold:
             # We have enough samples to calculate meaningful statistics
             
             # Calculate the mean (average) of all prediction errors
@@ -229,7 +245,7 @@ class AnomalyDetector:
             self.anomaly_threshold = mean_error + self.threshold_multiplier * std_error
             
             # Debug: Log threshold calculation (will be logged by caller)
-        else:
+        elif not freeze_active:
             # We don't have enough samples yet, so use a default threshold
             # This is a conservative estimate based on typical magnetic field variations
             # Typical magnetic field variations are in the range of 10-50 nT
@@ -245,6 +261,10 @@ class AnomalyDetector:
             else:
                 # No errors yet, use a very low default to catch any differences
                 self.anomaly_threshold = 10.0  # Default threshold in nanoTesla (nT)
+        elif freeze_active:
+            # Hold the threshold steady during the freeze window
+            if self.frozen_threshold is not None:
+                self.anomaly_threshold = self.frozen_threshold
         
         # Step 7: Mark which data points are anomalies
         # A point is an anomaly if its absolute error exceeds the threshold
@@ -254,6 +274,13 @@ class AnomalyDetector:
         else:
             # If threshold is None, mark all as non-anomalies (shouldn't happen)
             merged['is_anomaly'] = False
+
+        # Start freeze window on first detected anomaly (if not already frozen)
+        if not freeze_active and len(merged) > 0 and merged['is_anomaly'].any():
+            first_anom_time = merged.loc[merged['is_anomaly'], 'time'].min()
+            if pd.notna(first_anom_time):
+                self.freeze_until = pd.to_datetime(first_anom_time) + timedelta(minutes=self.freeze_duration_minutes)
+                self.frozen_threshold = self.anomaly_threshold
         
         # Return only the columns we need, excluding 'abs_difference' (internal use only)
         return merged[['time', 'actual', 'predicted', 'difference', 'is_anomaly']]

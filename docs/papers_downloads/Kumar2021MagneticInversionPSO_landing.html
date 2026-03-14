@@ -1,0 +1,630 @@
+
+<!DOCTYPE html><!--[if lt IE 7]> <html class="no-js lt-ie9 lt-ie8 lt-ie7" id="mainTemplate"> <![endif]--><!--[if IE 7]> <html class="no-js lt-ie9 lt-ie8" id="mainTemplate"> <![endif]--><!--[if IE 8]> <html class="no-js lt-ie9" id="mainTemplate"> <![endif]--><!--[if gt IE 8]><!--><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en" class="no-js" id="mainTemplate"> <!--<![endif]--><head><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=Edge" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Inversion of Magnetic Anomaly using Machine Learning Regression Techniques along with PSO | Earthdoc</title><meta name="disclaimer" content="Disclaimer Text and Data Mining. Any automated analytical technique aimed at analysing text and data in digital form in order to generate information including - but not limited to - patterns, trends and correlations (so-called Text and Data Mining) may only be applied if it is done by a research organisation or cultural heritage institution solely for the purpose of (non-commercial) scientific research as mentioned in Clause 3 of Directive (EU) 2019/790 (the Digital Single Market Directive) and Clause 15n of the Dutch Copyright Act [Auteurswet]. Text and Data Mining for commercial purposes is not allowed; all rights in this respect are reserved pursuant to Clause 4 paragraph 3 of the Digital Single Market Directive and Clause 15o paragraph 1 of the Dutch Copyright Act." />
+<link rel="schema.CRAWLER" href="http://labs.ingenta.com/2006/06/16/crawler" />
+<meta name="dc.title" content="Inversion of Magnetic Anomaly using Machine Learning Regression Techniques along with PSO" />
+<meta name="dc.publisher" content="European Association of Geoscientists &amp; Engineers"/>
+<meta name="dc.type" scheme="DCMIType" content="Text"/>
+<meta name="author" content="A. Kumar|S.R. Gangumalla" />
+<meta name="dc.creator" content="A. Kumar" />
+<meta name="dc.creator" content="S.R. Gangumalla" />
+<meta name="dc.identifier" content="doi:10.3997/2214-4609.202112801"/>
+<meta name="dc.date" content="2021/10/18" />
+<meta name="citation_conference_title" content="82nd EAGE Annual Conference &amp; Exhibition" />
+<meta name="citation_issn" content="2214-4609" />
+<meta name="citation_doi" content="10.3997/2214-4609.202112801" />
+<meta name="citation_publication_date" content="2021/10/18" />
+<meta name="citation_date" content="2021/10/18" />
+<meta name="citation_year" content="2021" />
+<meta name="citation_title" content="Inversion of Magnetic Anomaly using Machine Learning Regression Techniques along with PSO" />
+<meta name="citation_author" content="A. Kumar" />
+<meta name="citation_author_institution" content="Indian Institute Of Technology (ISM) Dhanbad" />
+<meta name="citation_author" content="S.R. Gangumalla" />
+<meta name="citation_author_institution" content="Indian Institute Of Technology (ISM) Dhanbad" />
+<meta name="citation_volume" content="2021" />
+<meta name="citation_issue" content="1" />
+<meta name="citation_firstpage" content="1" />
+<meta name="citation_lastpage" content="5" />
+<meta name="citation_publisher" content="European Association of Geoscientists &amp; Engineers" />
+<meta name="citation_abstract" content="Summary In this study, we have compared the Particle Swarm Optimization (PSO) algorithm, Artificial Neural Network, K- nearest Neighbors, Random forest regressor for the inversion of magnetic anomaly dataset. We have tried to find the unknown parameters of the causative source i.e., the horizontal position of the source, depth, amplitude coefficient, angle of effective magnetization, and the shape factor. Machine learning algorithms are implemented by constraining shape factors obtained from PSO. The applicability of these algorithms is tested both for noise-free and 10% gaussian noisy synthetic magnetic anomaly data generated for simple geometrical bodies like a sphere, horizontal cylinder and thin dyke. In addition, the validity of algorithms is also demonstrated on two field examples namely Bankura Anomaly, India, and Pima copper deposit, Arizona USA. Inversion parameters obtained from these PSO and ML algorithms are well corroborated with the results from previous studies." />
+<meta name="citation_abstract_html_url" content="https://www.earthdoc.org/content/papers/10.3997/2214-4609.202112801" />
+<meta name="description" property="og:description" content="Summary
+In this study, we have compared the Particle Swarm Optimization (PSO) algorithm, Artificial Neural Network, K- nearest Neighbors, Random forest regressor for the inversion of magnetic anomaly dataset. We have tried to find the unknown parameters of the causative source i.e., the horizontal position of the source, depth, amplitude coefficient, angle of effective magnetization, and the shape factor. Machine learning algorithms are implemented by constraining shape factors obtained from PSO. The applicability of these algorithms is tested both for noise-free and 10% gaussian noisy synthetic magnetic anomaly data generated for simple geometrical bodies like a sphere, horizontal cylinder and thin dyke. In addition, the validity of algorithms is also demonstrated on two field examples namely Bankura Anomaly, India, and Pima copper deposit, Arizona USA. Inversion parameters obtained from these PSO and ML algorithms are well corroborated with the results from previous studies." />
+<meta name="robots" content="NOODP,noarchive" />
+<meta name="stats-meta" content="stats" data-logstatisticsurl="/logstatistics.action" data-itemid="/content/papers/10.3997/2214-4609.202112801" data-baseuri="http://instance.metastore.ingenta.com"/>
+<link rel="shortcut icon" href="/images/instance/favicon.png" /><link href="/css/v/12.1.1/hybrid/google-fonts.css" rel="stylesheet" /><link rel="stylesheet" media="screen and (max-width: 887px)" href="/common/v/12.1.1/css/component.css" type="text/css"/><link rel="stylesheet" href="/css/v/12.1.1/hybrid/site.css" type="text/css" /><!--[if lte IE 10]><link rel="stylesheet" href="/css/hybrid/ie.css" type="text/css" /><![endif]--><link rel="stylesheet" href="/css/v/12.1.1/contentpreview/preview.css" type="text/css" media="screen, print" /><link rel="stylesheet" href="/css/v/12.1.1/hybrid/fulltext-html-tab.css" type="text/css" media="screen, print" /><link rel="stylesheet" href="/common/v/12.1.1/css/jquery.fancybox.css" type="text/css" media="screen, print" /><link rel="stylesheet" href="/common/v/12.1.1/css/jquery.fancybox.css" type="text/css" media="screen" /><link href="https://cdnjs.cloudflare.com/ajax/libs/froala-editor/2.8.1/css/froala_style.min.css" rel="stylesheet" type="text/css" /><script src="/common/v/12.1.1/js/vendor/modernizer.custom.min.js" ></script><!-- HTML5 Respond.js IE8 support of media queries --><!--[if lt IE 9]><script src="//oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script><![endif]--><script src="/js/v/12.1.1/jp/jquery-1.11.1.min.js" ></script><script src="/common/v/12.1.1/js/jquery.dlmenu.js" ></script><script async="async" src="https://securepubads.g.doubleclick.net/tag/js/gpt.js" type="text/javascript"></script><script type="text/javascript">window.googletag = window.googletag || {cmd: []};</script></head> <body id="conferencepaper" class="body is-sticky-enabled is-hybrid-skin-template" data-instanceprefix="instance"data-elements-to-offset-scroll-when-fixed=".main-header-container, .article-navigation-bar"><div id="hiddenContext" class="hidden-js-div" data-cookiemessage="We use &lt;a href=&#034;/cookie-info&#034;&gt;cookies&lt;/a&gt; to track usage and preferences." data-cookieaccepttext="I Understand" data-cookiedeclinetext="Disable Cookies" data-cookiepolicytext="Privacy Policy"></div><div id="skinPublishingDates" class="hidden-js-div">1887</div><div id="wrapper" class="siteWrapper"><header class="header" id="header"><div class="navbar navbar-default main-header-container" role="navigation">
+<div class="container header-container">
+<a href="/" 
+class="logo header-container__logo" ><picture>
+<source srcset="/images/hybrid/logo/logo.svg"
+media="(max-width: 960px)">
+<img alt="EarthDoc - Online Geoscience Database" 
+src="/images/hybrid/logo/ED_logo.svg" 
+class="img-responsive main-logo-image" />
+</picture>
+<img alt="EarthDoc - Online Geoscience Database" 
+src="/images/hybrid/logo/pay_off.svg" 
+class="img-responsive secondary-logo-image" /></a>
+<ul class="navbar-nav-main-menu header-container__icon-menu"
+aria-label="User navigation items" role="menubar">
+<li class="search-nav-container 
+hidden-lg hidden-md 
+navbar-nav-main-menu__search-container" role="none">
+<a href="#" class="js-toggle-search-window" 
+title="Search" aria-label="Search" ><img src="/images/hybrid/icon/search.svg" alt="search icon" /></a>
+<div class="search-nav js-global-site-search-container" id="search-nav">
+<form id="global-search-form" action="/search" class="search-nav__form search-nav__form--adv-search-enabled"
+data-advancedSearchAvailable="true" 
+data-noSearchTermError="Please enter a search term">
+<div class="search-nav__up-triangle "></div> 
+<input type="text" id="quickSearchBox" class="js-searchcomplete search-nav__input-box"
+name="value1" placeholder="Search"
+aria-label="Search" /> 
+<input type="hidden" 
+value="fulltext"
+name="option1"
+aria-label="Search" />
+<!-- <input name="pageSize" value="8" type="hidden" /> taken out at present - as interferes with search at present and not scrolling -->
+<button type="submit" class="search-nav__submit-btn">
+<img src="/images/hybrid/icon/search.svg" alt="search icon" />
+</button>
+<a href="/search/advancedsearch"
+class="search-nav__advanced-search-link">
+ADVANCED SEARCH
+</a>
+</form>
+</div>
+</li>
+<li class="navbar-nav-main-menu__login-container" role="none"> 
+<a href="/openidconnect/login?signInTarget=%2Fcontent%2Fpapers%2F10.3997%2F2214-4609.202112801" class="js-profile" role="menuitem" title="Login or Register" aria-label="Login or Register">
+<img src="/images/hybrid/icon/account_circle.svg" alt="account icon" />
+</a>
+</li>
+<li class=" navbar-nav-main-menu__cart-container" role="none">
+<a title="Shopping cart"
+href="/cart"
+aria-label="Cart"
+role="menuitem"
+class="cart-button-desktop">
+<img src="/images/hybrid/icon/shopping_cart.svg" alt="shopping cart icon" />
+</a>
+</li>
+<li class="main-navigation-menu" role="none"><button type="button" class="main-navigation-menu__button" data-toggle="collapse" data-target="#collapse-main-nav" role="menuitem"aria-controls="collapse-main-nav"aria-label="Site menu"title="Site menu"><span class="icon-bar bar-one"></span><span class="icon-bar bar-two"></span><span class="icon-bar bar-three"></span></button><div class="collapse main-navigation-menu__dropdown main-navigation-dropdown" id="collapse-main-nav"><ul class="main-navigation-dropdown__menu" role="menu"><li class="main-navigation-dropdown__item active"><a href="#" title="All Journals" role="button"aria-label="All Journals expand or collapse" aria-controls="collapse-main-sub-nav-1" aria-expanded="false"class="main-navigation-dropdown__link js-link-toggle-main-sub-menu">All Journals</a><span class="main-navigation-dropdown__toggle-expand js-link-toggle-main-sub-menu" role="button"aria-label="All Journals expand or collapse" title="expand or collapse"aria-controls="collapse-main-sub-nav-1" aria-expanded="false"><span class="glyphicon glyphicon-chevron-down main-navigation-dropdown__chevron js-toggle-main-menu-item" aria-hidden="true"></span></span><ul class="main-navigation-dropdown__submenu js-toggle-display-sub-menu" id="collapse-main-sub-nav-1"><li class="main-navigation-dropdown__submenu-item "><a href="/content/journals/fb" class="main-navigation-dropdown__submenu-link"title="First Break">First Break</a></li><li class="main-navigation-dropdown__submenu-item "><a href="/content/journals/nsg" class="main-navigation-dropdown__submenu-link"title="Near Surface Geophysics">Near Surface Geophysics</a></li><li class="main-navigation-dropdown__submenu-item "><a href="/content/journals/bre" class="main-navigation-dropdown__submenu-link"title="Basin Research">Basin Research</a></li><li class="main-navigation-dropdown__submenu-item "><a href="/content/journals/gpr" class="main-navigation-dropdown__submenu-link"title="Geophysical Prospecting">Geophysical Prospecting</a></li><li class="main-navigation-dropdown__submenu-item "><a href="/content/journals/petgeo" class="main-navigation-dropdown__submenu-link"title="Petroleum Geoscience">Petroleum Geoscience</a></li><li class="main-navigation-dropdown__submenu-item "><a href="/content/journals/geoenergy" class="main-navigation-dropdown__submenu-link"title="Geoenergy">Geoenergy</a></li><li class="main-navigation-dropdown__submenu-item "><a href="/content/journals/texg20" class="main-navigation-dropdown__submenu-link"title="Exploration Geophysics">Exploration Geophysics</a></li><li class="main-navigation-dropdown__submenu-item "><a href="/content/journals/texp20 " class="main-navigation-dropdown__submenu-link"title="Preview">Preview</a></li></ul></li><li class="main-navigation-dropdown__item active"><a href="/content/proceedings"title="Conference Proceedings" class="main-navigation-dropdown__link">Conference Proceedings</a></li><li class="main-navigation-dropdown__item active"><a href="/content/books"title="Books" class="main-navigation-dropdown__link">Books</a></li><li class="main-navigation-dropdown__item active"><a href="#" title="Subscribe" role="button"aria-label="Subscribe expand or collapse" aria-controls="collapse-main-sub-nav-4" aria-expanded="false"class="main-navigation-dropdown__link js-link-toggle-main-sub-menu">Subscribe</a><span class="main-navigation-dropdown__toggle-expand js-link-toggle-main-sub-menu" role="button"aria-label="Subscribe expand or collapse" title="expand or collapse"aria-controls="collapse-main-sub-nav-4" aria-expanded="false"><span class="glyphicon glyphicon-chevron-down main-navigation-dropdown__chevron js-toggle-main-menu-item" aria-hidden="true"></span></span><ul class="main-navigation-dropdown__submenu js-toggle-display-sub-menu" id="collapse-main-sub-nav-4"><li class="main-navigation-dropdown__submenu-item "><a href="/how-to-get-access" class="main-navigation-dropdown__submenu-link"title="How to subscribe to EarthDoc">How to subscribe to EarthDoc</a></li><li class="main-navigation-dropdown__submenu-item "><a href="/eage-membership" class="main-navigation-dropdown__submenu-link"title="EAGE Membership">EAGE Membership</a></li><li class="main-navigation-dropdown__submenu-item "><a href="/open-access " class="main-navigation-dropdown__submenu-link"title="Open Access">Open Access</a></li></ul></li><li class="main-navigation-dropdown__item active"><a href="#" title="More Info" role="button"aria-label="More Info expand or collapse" aria-controls="collapse-main-sub-nav-5" aria-expanded="false"class="main-navigation-dropdown__link js-link-toggle-main-sub-menu">More Info</a><span class="main-navigation-dropdown__toggle-expand js-link-toggle-main-sub-menu" role="button"aria-label="More Info expand or collapse" title="expand or collapse"aria-controls="collapse-main-sub-nav-5" aria-expanded="false"><span class="glyphicon glyphicon-chevron-down main-navigation-dropdown__chevron js-toggle-main-menu-item" aria-hidden="true"></span></span><ul class="main-navigation-dropdown__submenu js-toggle-display-sub-menu" id="collapse-main-sub-nav-5"><li class="main-navigation-dropdown__submenu-item "><a href="/faq" class="main-navigation-dropdown__submenu-link"title="FAQ">FAQ</a></li><li class="main-navigation-dropdown__submenu-item "><a href="/about-eage" class="main-navigation-dropdown__submenu-link"title="About EAGE">About EAGE</a></li><li class="main-navigation-dropdown__submenu-item "><a href="/contact-us" class="main-navigation-dropdown__submenu-link"title="Contact Us">Contact Us</a></li><li class="main-navigation-dropdown__submenu-item "><a href="/privacy" class="main-navigation-dropdown__submenu-link"title="Privacy Statement">Privacy Statement</a></li></ul></li></ul></div></li></ul>
+<form action="/search" class="search-main js-global-search-form header-container__search"data-noSearchTermError="Please enter a search term" role="search"><div class="search-main__input-container"> <input type="text" class="js-searchcomplete search-main__input"name="value1" placeholder="Search"aria-label="Search" /><input type="hidden" value="fulltext"name="option1" /><button type="submit" class="search-main__submit-btn btn btn-link"><img src="/images/hybrid/icon/search.svg" alt="search icon" /></button></div><div class="search-main__advanced-search-container"><a href="/search/advancedsearch"class="search-main__advanced-search-link">ADVANCED SEARCH</a></div></form> 
+</div>
+</div>
+</header><div id="bellowheadercontainer" class="container no-padding " ><div class="mobile-tools">
+<button type="button" id="mobile-tools-button" data-parent="#bellowheadercontainer" class="navbar-toggle toggle-arrow" data-toggle="collapse"
+data-target="#tools-nav" aria-expanded="false">
+<span class="sr-only">Toggle navigation</span>
+<span>Tools <i class="fa fa-angle-down"></i></span>
+</button>
+<aside tabindex="-1" class="mobile-tools-options pull-right left-padding sidebar-pub2web-container header-sidebar" aria-label="site sidebar containing page tools, access key and possibly adverts">
+<div id="tools-nav-mobile" class="tools-nav sidebar-pub2web-element panel panel-default navbar-collapse navbar-right collapse">
+<div class="panel-heading">
+<h3 class="panel-title"><i class="fa fa-wrench"></i> Tools</h3>
+</div>
+<div class="panel-body" >
+<ul class="list-unstyled">
+<li class=" tools-item tools-recommend">
+<div class="js-nli-createalert link-style" data-toggle="modal" data-target="#signInToCreateAlert">
+<a href="#" class="js-popoverLink" role="button" data-container="body" data-toggle="popover" data-placement="top" 
+data-content="Please sign in or register to use this feature">
+<i class="fa fa-heart favouritesIcon fa-fw"></i>
+Add to my favourites
+</a>
+</div> 
+</li>
+<li class="">
+</li>
+<li class="">
+<a href="#" class="toggle showhide collapsed js-dropdown-toggle" role="button" aria-expanded="false" data-toggle="collapse" title="Link to export citations" aria-controls="export-list0">
+<i class="fa fa-paper-plane fa-fw"></i>
+Export citation <span class="fa upDownCaret"></span>
+</a>
+<ul class="flat togglecontent hidden-js-li exportlist list-group collapse" id="export-list0">
+<li class="list-group-item">
+<a href="/content/papers/10.3997/2214-4609.202112801/cite/bibtex" title="Link to export in BibTEX format" 
+class="externallink" >BibT<sub>E</sub>X</a>
+</li>
+<li class="list-group-item">
+<a href="/content/papers/10.3997/2214-4609.202112801/cite/endnote" title="Link to export in Endnote format" 
+class="externallink" >Endnote</a>
+</li>
+<li class="list-group-item">
+<a href="/content/papers/10.3997/2214-4609.202112801/cite/bibtex" title="Link to export in Zotero format" 
+class="externallink" >Zotero</a>
+</li>
+<li class="list-group-item">
+<a href="/content/papers/10.3997/2214-4609.202112801/cite/medline" title="Link to export in MEDLARS text" 
+class="externallink" >Medlars</a>
+</li>
+<li class="list-group-item">
+<a href="/content/papers/10.3997/2214-4609.202112801/cite/refworks" title="Link to export in RefWorks format" 
+class="externallink" >RefWorks</a>
+</li>
+<li class="list-group-item">
+<a href="http://www.mendeley.com/import/?url=https%3A%2F%2Fwww.earthdoc.org%2Fcontent%2Fpapers%2F10.3997%2F2214-4609.202112801" target="_blank" title="Link to export to Mendeley" class="externallink">Mendeley</a>
+</li>
+</ul>
+</li>
+<li class=" tools-item tools-recommend">
+<a href="/content/proceedings/eageannual2021" title="Link to recommend this journal to a library" 
+data-title="82nd EAGE Annual Conference &amp; Exhibition" data-emailbody="Dear Librarian,I would like to recommend the following publication:" id="recommendToLibrarian" data-subj="Recommend to library" ><i class="fa fa-thumbs-o-up fa-fw"></i>
+Recommend to library</a>
+</li>
+<li>
+</li>
+</ul>
+</div>
+</div>
+</aside>
+</div>
+<aside class="col-xs-12 col-sm-12 col-md-3 pull-right left-padding sidebar-pub2web-container header-sidebar" aria-label="site sidebar containing page tools, access key and possibly adverts"> 
+<div id="tools-nav-mobile" class="tools-nav sidebar-pub2web-element panel panel-default navbar-collapse navbar-right collapse">
+<div class="panel-heading">
+<h3 class="panel-title"><i class="fa fa-wrench"></i> Tools</h3>
+</div>
+<div class="panel-body" >
+<ul class="list-unstyled">
+<li class=" tools-item tools-recommend">
+<div class="js-nli-createalert link-style" data-toggle="modal" data-target="#signInToCreateAlert">
+<a href="#" class="js-popoverLink" role="button" data-container="body" data-toggle="popover" data-placement="top" 
+data-content="Please sign in or register to use this feature">
+<i class="fa fa-heart favouritesIcon fa-fw"></i>
+Add to my favourites
+</a>
+</div> 
+</li>
+<li class="">
+</li>
+<li class="">
+<a href="#" class="toggle showhide collapsed js-dropdown-toggle" role="button" aria-expanded="false" data-toggle="collapse" title="Link to export citations" aria-controls="export-list1">
+<i class="fa fa-paper-plane fa-fw"></i>
+Export citation <span class="fa upDownCaret"></span>
+</a>
+<ul class="flat togglecontent hidden-js-li exportlist list-group collapse" id="export-list1">
+<li class="list-group-item">
+<a href="/content/papers/10.3997/2214-4609.202112801/cite/bibtex" title="Link to export in BibTEX format" 
+class="externallink" >BibT<sub>E</sub>X</a>
+</li>
+<li class="list-group-item">
+<a href="/content/papers/10.3997/2214-4609.202112801/cite/endnote" title="Link to export in Endnote format" 
+class="externallink" >Endnote</a>
+</li>
+<li class="list-group-item">
+<a href="/content/papers/10.3997/2214-4609.202112801/cite/bibtex" title="Link to export in Zotero format" 
+class="externallink" >Zotero</a>
+</li>
+<li class="list-group-item">
+<a href="/content/papers/10.3997/2214-4609.202112801/cite/medline" title="Link to export in MEDLARS text" 
+class="externallink" >Medlars</a>
+</li>
+<li class="list-group-item">
+<a href="/content/papers/10.3997/2214-4609.202112801/cite/refworks" title="Link to export in RefWorks format" 
+class="externallink" >RefWorks</a>
+</li>
+<li class="list-group-item">
+<a href="http://www.mendeley.com/import/?url=https%3A%2F%2Fwww.earthdoc.org%2Fcontent%2Fpapers%2F10.3997%2F2214-4609.202112801" target="_blank" title="Link to export to Mendeley" class="externallink">Mendeley</a>
+</li>
+</ul>
+</li>
+<li class=" tools-item tools-recommend">
+<a href="/content/proceedings/eageannual2021" title="Link to recommend this journal to a library" 
+data-title="82nd EAGE Annual Conference &amp; Exhibition" data-emailbody="Dear Librarian,I would like to recommend the following publication:" id="recommendToLibrarian" data-subj="Recommend to library" ><i class="fa fa-thumbs-o-up fa-fw"></i>
+Recommend to library</a>
+</li>
+<li>
+</li>
+</ul>
+</div>
+</div>
+<div id="signInOrRegisterDialog"></div>
+</aside>
+<main class="col-xs-12 col-sm-12 col-md-9 content main-content-container js-main-content-container"id="main-content-container" aria-label="Main site content contained within"> <nav aria-label="Breadcrumb"><ol class="breadcrumb"><li><a href="/" dir="auto" >Home</a></li><li><a dir="auto" href="/content/proceedings">Conferences</a></li><li><a dir="auto" href="/content/proceedings/eageannual2021">82nd EAGE Annual Conference &amp; Exhibition</a><li><span class="inactiveLink" dir="auto">Conference paper</span></li></ol></nav><input type="hidden" name="svgImageBackgroundColor" value="rgba(255,255,255,0.7)"/><div class="clearfix"></div><div class="article-cover"><div class="col-sm-12"><div class="right-title-box"><button class="btn btn-default js-launch-price-overlay" data-toggle="modal" data-target="#bs-example-modal-lg0">
+Buy this Content
+</button></div><div class="title-box"><ul class="list-unstyled"><li><h1 class="h2">Inversion of Magnetic Anomaly using Machine Learning Regression Techniques along with PSO</h1></li><li class="data-author js-data-author"><strong class="meta-key authors_label"><strong>Authors</strong></strong>
+<span class="meta-value authors"><a href="/search?value1=A.+Kumar&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">A. Kumar</a><sup>1</sup>&nbsp;and <a href="/search?value1=S.R.+Gangumalla&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">S.R. Gangumalla</a><sup>1</sup></span>
+</li><li><div class="showhide spacing">
+<a id="showHideAffiliation" href="#" role="button" class="std-display viewHideAffiliation js-showhide" aria-expanded="false" aria-controls="showHideAffiliationContent" >
+<span class="js-plus">
+<i class="fa fa-plus-circle"></i>
+<span class="underline">
+View Affiliations
+</span>
+</span>
+<span class="js-minus minus">
+<i class="fa fa-minus-circle"></i>
+<span class="underline">
+Hide Affiliations
+</span>
+</span>
+</a>
+<div id="showHideAffiliationContent" class="js-description minus">
+<div class="affiliation-details">
+<!-- -->
+<span class="meta-value affiliations">
+<sup class="affiliations_number">1</sup>
+<a class="affilLinkToEncode" href="/search?option1=pub_affiliation&value1=Indian+Institute+Of+Technology+%28ISM%29+Dhanbad&option912=resultCategory&value912=ResearchPublicationContent">Indian Institute Of Technology (ISM) Dhanbad</a>
+</span>
+</div>
+<div class="institutionLinks">
+<div class="instList">
+</div>
+</div>
+</div>
+</div>
+</li><li><strong>Publisher:</strong>European Association of Geoscientists &amp; Engineers</li><li><strong>Source:</strong><a href="/content/serial/2214-4609">Conference Proceedings</a>, <a href="/content/proceedings/eageannual2021">82nd EAGE Annual Conference &amp; Exhibition</a>, Oct 2021, Volume 2021, p.1 - 5</li><li><li><span class="meta-key doi_label"><abbr title="Digital Object Identifier"><strong>DOI:</strong></abbr></span><span class="meta-value doi"><a href="https://doi.org/10.3997/2214-4609.202112801" 
+class="externallink" >https://doi.org/10.3997/2214-4609.202112801</a>
+</span></li></ul></div><div class="clearfix"></div><ul class="pagernav" aria-label="content navigation">
+<li class="previous ">
+<a href="/content/papers/10.3997/2214-4609.202112797" 
+><i class="fa fa-angle-double-left"></i>
+Previous <span class="hidden-xs">
+article
+</span></a>
+</li>
+<li>
+<a href="/content/proceedings/eageannual2021" 
+>T<span class="hidden-xs">able</span> o<span class="hidden-xs">f</span> C<span class="hidden-xs">ontents</span></a>
+</li>
+<li class="next ">
+<a href="/content/papers/10.3997/2214-4609.202112802" 
+>Next <span class="hidden-xs">
+article
+</span> 
+<i class="fa fa-angle-double-right"></i></a>
+</li>
+</ul>
+</div></div><div class="clearfix"></div><nav class="transformer-tabs js-transformer-tabs icon-image" aria-label="Article navigation"><ul class="tabset tab-dropdown js-dropdown"><li class="js-select select list-unstyled"><div class="js-mobile-tab mobile-tab"> Abstract</div></li><li class="active tab-one tabIcon" id="abstract_tab">
+<a href="#abstract_content" title="Abstract" 
+class="active tab-one" 
+role="button" aria-pressed="true" >
+<span class="iconContainer"><i class="fa-stack fa-lg"><i class="fa fa-ellipsis-h fa-stack-1x"></i><i class="fa fa-file-o fa-stack-2x"></i></i><strong class="titleIcon">Abstract </strong></span>
+</a>
+</li><li class=" disabled tabIcon" id="html_tab">
+<a href="#html_fulltext" title="" 
+class=" disabled" 
+tabindex="-1" role="button" aria-disabled="true" >
+<span class="iconContainer"><i class="fa-stack fa-lg" aria-hidden="true"><i class="fa fa-code fa-stack-1x" aria-hidden="true"></i><i class="fa fa-file-o fa-stack-2x" aria-hidden="true"></i></i><strong class="titleIcon">Full-Text </strong></span>
+</a>
+</li><li class=" tabIcon" id="dataandmedia_tab">
+<a href="#dataandmedia" title="Figures &amp; Tables" 
+class=" " 
+role="button" aria-pressed="false" >
+<span class="iconContainer"><i class="fa fa-file-text-o"></i><strong class="titleIcon">Figures &amp; Tables </strong></span>
+</a>
+</li><li class=" tabIcon" id="references">
+<a href="#referenceContainer" title="References" 
+class=" " 
+role="button" aria-pressed="false" >
+<span class="iconContainer"><i class="fa-stack fa-lg" aria-hidden="true"><i class="fa fa-bookmark fa-stack-1x" aria-hidden="true"></i><i class="fa fa-file-o fa-stack-2x" aria-hidden="true"></i></i><strong class="titleIcon">References (11)</strong></span>
+</a>
+</li><li class=" disabled tabIcon" id="cite">
+<a href="#cited" title="This content does not have any cited by information" 
+class=" disabled" 
+tabindex="-1" role="button" aria-disabled="true" >
+<span class="iconContainer"><i class="fa-stack fa-lg" aria-hidden="true"><i class="fa fa-quote-right fa-stack-1x" aria-hidden="true"></i><i class="fa fa-file-o fa-stack-2x" aria-hidden="true"></i></i><strong class="titleIcon">Cited By </strong></span>
+</a>
+</li><li class=" disabled tabIcon" id="supplementary_Tab">
+<a href="#supplementary_data" title="This content does not have any supplements information" 
+class=" disabled" 
+tabindex="-1" role="button" aria-disabled="true" >
+<span class="iconContainer"><i class="fa fa-file-text-o"></i><strong class="titleIcon">Supplements </strong></span>
+</a>
+</li><li class=" tabIcon" id="metrics_tab">
+<a href="#metrics_content" title="Metrics" 
+class=" " 
+role="button" aria-pressed="false" >
+<span class="iconContainer"><i class="fa fa-pie-chart"></i><strong class="titleIcon">Metrics </strong></span>
+</a>
+</li><li class=" tabIcon" id="relatedContent_tab">
+<a href="#related_content" title="Related Content" 
+class=" " 
+role="button" aria-pressed="false" >
+<span class="iconContainer"><i class="fa fa-link"></i><strong class="titleIcon">Related Content </strong></span>
+</a>
+</li></ul></nav><input type="hidden" name="svgImageBackgroundColor" value="rgba(255,255,255,0.7)"/><section id="tabbedpages" class="tabs icon-image-content"><div id="abstract_content" class="active tab-pane abstract tabbedsection"><div class="articleabstract">
+<h3 dir="auto">Abstract</h3>
+<div dir="auto">
+<div
+class="description" ><span class="tl-main-part">Summary</span>
+<p>In this study, we have compared the Particle Swarm Optimization (PSO) algorithm, Artificial Neural Network, K- nearest Neighbors, Random forest regressor for the inversion of magnetic anomaly dataset. We have tried to find the unknown parameters of the causative source i.e., the horizontal position of the source, depth, amplitude coefficient, angle of effective magnetization, and the shape factor. Machine learning algorithms are implemented by constraining shape factors obtained from PSO. The applicability of these algorithms is tested both for noise-free and 10% gaussian noisy synthetic magnetic anomaly data generated for simple geometrical bodies like a sphere, horizontal cylinder and thin dyke. In addition, the validity of algorithms is also demonstrated on two field examples namely Bankura Anomaly, India, and Pima copper deposit, Arizona USA. Inversion parameters obtained from these PSO and ML algorithms are well corroborated with the results from previous studies.</p></div>
+</div>
+</div>
+<div class="copyright-info" dir="auto">&copy; EAGE Publications BV</div></div><div id="metrics_content" class="tab-pane metrics hidden-js-div tabbedsection"><div class="itemMetricsLoading"><img src="/images/jp/spinner.gif" alt="Loading" /><p>Article metrics loading...</p></div><div class="metricsContainer retrieveMetrics">
+<div class="hiddenjsdiv metricsItemId">/content/papers/10.3997/2214-4609.202112801</div>
+<div class="hiddenjsdiv metricsPubDate">2021-10-18</div>
+<div class="hiddenjsdiv metricsEndDate">2026-02-21</div>
+<div class="hiddenjsdiv" id="graph1Settings" 
+data-nodata="No metrics data to plot."
+>
+</div>
+<div class="hiddenjsdiv" id="graph2Settings" 
+data-nodata="No metrics data to plot."
+>
+</div>
+<div class="hiddenjsdiv " id="graph3Settings" 
+data-nodata="No metrics data to plot."
+>
+</div>
+<div class="metricsDetails">
+</div>
+</div>
+</div><div id="related_content" class="relatedContent hidden-js-div tabbedsection tab-pane"><ul class="list-unstyled"><li><h4 class="thisJournal"><a href="#" class="js-related-content-load js-plus-minus-toggle-icon" data-target="#relatedcontent" data-toggle="collapse"><i class="fa fa-plus-square"></i> From This Site</a></h4><div id="relatedcontent" class="hidden-js-toggle related-content"><div class="morelikethiscontainer">
+<div class="hiddenmorelikethisids hidden-js-div"></div>
+<div class="hiddenmorelikethiswebid hidden-js-div">/content/papers/10.3997/2214-4609.202112801</div>
+<div class="hiddenmorelikethisfields hidden-js-div">dcterms_title,dcterms_subject,pub_keyword</div>
+<div class="hiddenmorelikethisrestrictions hidden-js-div"> -contentType:Journal -contentType:Contributor -contentType:Concept -contentType:Institution</div>
+<div class="hiddenmorelikethisnumber hidden-js-div">10</div>
+<div class="hiddenmorelikethisnumbershown hidden-js-div">5</div>
+<!-- <i class="fa fa-spinner fa-spin"></i> -->
+</div>
+</div></li></ul></div><div id="html_fulltext" class="htmlfulltext hidden-js-div tabbedsection tab-pane "><form name="pptForm" class="hidden pptForm" id="pptDwnld" action="/contentexport/powerpoint/powerpoint.action" method="POST"><input type="hidden" name="itemId" value=""/><input type="hidden" name="title" value=""/><input type="hidden" name="caption" value=""/><input type="hidden" name="copyright" value=""/><input type="hidden" name="citation" value=""/><input type="hidden" name="imagePath" value=""/><input type="hidden" name="logoPath" value="jp/pub2web.gif" /><a href="#" class="pptDownload">Download as PowerPoint</a></form><div class="itemFullTextLoading"><img src="/images/jp/spinner.gif" alt="Loading full text..." /><p>Full text loading...</p></div><span class="showPPT" data-showppt="true" ></span></div><div id="referenceContainer" class="references hidden-js-div tabbedsection tab-pane"><div id="referencedetails">
+<p class="description"><span class="tl-main-part">References</span></p>
+<ol id="articlereference" class="articlereference-apa">
+<li class="refbody" id="ref-A21-2801-bib1">
+<xhtml:span xmlns:xhtml="http://www.w3.org/1999/xhtml" xml:lang="en"><span class="reference-person-group-apa">Abdelrahman, E. M. and Essa, K. S.</span><div class="refline singleref"> [<span class="reference-year-apa">2015</span>]. A new method for depth and shape determinations from magnetic data. <span class="reference-source-apa">Pure and Applied Geophysics</span>, 172, 439–460.</div>
+</xhtml:span>
+<a href="http://scholar.google.com/scholar_lookup?title=A+new+method+for+depth+and+shape+determinations+from+magnetic+data&amp;author=E.+M.+Abdelrahman&amp;author=K.+S.+Essa&amp;journal=Pure+and+Applied+Geophysics&amp;volume=172&amp;pages=439-460&amp;publication_year=2015&amp;" 
+data-location="same-new-window" class="js-externallink" >[Google Scholar]</a>
+</li>
+<li class="refbody" id="ref-A21-2801-bib2">
+<xhtml:span xmlns:xhtml="http://www.w3.org/1999/xhtml" xml:lang="en"><span class="reference-person-group-apa">Biswas, A.</span><div class="refline singleref"> [<span class="reference-year-apa">2015</span>]. Interpretation of residual gravity anomaly caused by a simple shaped body using very fast simulated annealing global optimization. <span class="reference-source-apa">Geoscience Frontiers</span>, 6, 875–893.</div>
+</xhtml:span>
+<a href="http://scholar.google.com/scholar_lookup?title=Interpretation+of+residual+gravity+anomaly+caused+by+a+simple+shaped+body+using+very+fast+simulated+annealing+global+optimization&amp;author=A.+Biswas&amp;journal=Geoscience+Frontiers&amp;volume=6&amp;pages=875-893&amp;publication_year=2015&amp;" 
+data-location="same-new-window" class="js-externallink" >[Google Scholar]</a>
+</li>
+<li class="refbody" id="ref-A21-2801-bib3">
+<xhtml:span xmlns:xhtml="http://www.w3.org/1999/xhtml" xml:lang="en"><span class="reference-person-group-apa">Kennedy, J. and Eberhart, R.</span><div class="refline singleref"> [<span class="reference-year-apa">1995</span>]. Particle swarm optimization, in The Proceedings of IEEE Conf. Neural Networks, Piscataway, NJ, pp. 1942–1948.</div>
+</xhtml:span>
+<a href="http://scholar.google.com/scholar_lookup?title=The+Proceedings+of+IEEE+Conf.+Neural+Networks&amp;author=J.+Kennedy&amp;author=R.+Eberhart&amp;publication_year=1995&amp;" 
+data-location="same-new-window" class="js-externallink" >[Google Scholar]</a>
+</li>
+<li class="refbody" id="ref-A21-2801-bib4">
+<xhtml:span xmlns:xhtml="http://www.w3.org/1999/xhtml" xml:lang="en"><span class="reference-person-group-apa">Srivastava, S., Datta, D., Agarwal, B. N. P. and Mehta, S.</span><div class="refline singleref"> [<span class="reference-year-apa">2014</span>]. Applications of ant colony optimization in determination of source parameters from total gradient of potential fields. <span class="reference-source-apa">Near Surface Geophysics</span>, 12, 373–389.</div>
+</xhtml:span>
+<a href="http://scholar.google.com/scholar_lookup?title=Applications+of+ant+colony+optimization+in+determination+of+source+parameters+from+total+gradient+of+potential+fields&amp;author=S.+Srivastava&amp;author=D.+Datta&amp;author=B.+N.+P.+Agarwal&amp;author=S.+Mehta&amp;journal=Near+Surface+Geophysics&amp;volume=12&amp;pages=373-389&amp;publication_year=2014&amp;" 
+data-location="same-new-window" class="js-externallink" >[Google Scholar]</a>
+</li>
+<li class="refbody" id="ref-A21-2801-bib5">
+<xhtml:span xmlns:xhtml="http://www.w3.org/1999/xhtml" xml:lang="en"><span class="reference-person-group-apa">Thompson, D. T.</span><div class="refline singleref"> [<span class="reference-year-apa">1982</span>]. EULDPH-A new technique for making computer-assisted depth estimates from magnetic data. <span class="reference-source-apa">Geophysics</span>, 47, 31–37.</div>
+</xhtml:span>
+<a href="http://scholar.google.com/scholar_lookup?title=EULDPH-A+new+technique+for+making+computer-assisted+depth+estimates+from+magnetic+data&amp;author=D.+T.+Thompson&amp;journal=Geophysics&amp;volume=47&amp;pages=31-37&amp;publication_year=1982&amp;" 
+data-location="same-new-window" class="js-externallink" >[Google Scholar]</a>
+</li>
+<li class="refbody" id="ref-A21-2801-bib6">
+<xhtml:span xmlns:xhtml="http://www.w3.org/1999/xhtml" xml:lang="en"><span class="reference-person-group-apa">Breiman, L.</span><div class="refline singleref">, [<span class="reference-year-apa">2001</span>]. Random Forest, <span class="reference-source-apa">Machine Learning</span>45, 5–32.</div>
+</xhtml:span>
+<a href="http://scholar.google.com/scholar_lookup?title=Random+Forest&amp;author=L.+Breiman&amp;journal=Machine+Learning&amp;volume=45&amp;pages=5-32&amp;publication_year=2001&amp;" 
+data-location="same-new-window" class="js-externallink" >[Google Scholar]</a>
+</li>
+<li class="refbody" id="ref-A21-2801-bib7">
+<xhtml:span xmlns:xhtml="http://www.w3.org/1999/xhtml" xml:lang="en"><span class="reference-person-group-apa">Ho, T. K.</span><div class="refline singleref">, [<span class="reference-year-apa">1998</span>]. The random subspace method for constructing decision tree forests, IEEE Trans. <span class="reference-source-apa">On Pattern Analysis and Machine Intelligence</span>, 20, 832–844</div>
+</xhtml:span>
+<a href="http://scholar.google.com/scholar_lookup?title=The+random+subspace+method+for+constructing+decision+tree+forests%2C+IEEE+Trans&amp;author=T.+K.+Ho&amp;journal=On+Pattern+Analysis+and+Machine+Intelligence&amp;volume=20&amp;pages=832-844&amp;publication_year=1998&amp;" 
+data-location="same-new-window" class="js-externallink" >[Google Scholar]</a>
+</li>
+<li class="refbody" id="ref-A21-2801-bib8">
+<xhtml:span xmlns:xhtml="http://www.w3.org/1999/xhtml" xml:lang="en"><span class="reference-person-group-apa">Baldwin, J., Bateman, A.R.M. &amp; Wheatley, C.L.</span><div class="refline singleref">, [<span class="reference-year-apa">1990</span>]. Application of neural network to the problem of mineral identification from well logs, <span class="reference-source-apa">The Log Analyst</span>, 31, 279–293.</div>
+</xhtml:span>
+<a href="http://scholar.google.com/scholar_lookup?title=Application+of+neural+network+to+the+problem+of+mineral+identification+from+well+logs&amp;author=J.+Baldwin&amp;author=A.R.M.+Bateman&amp;author=C.L.+Wheatley&amp;journal=The+Log+Analyst&amp;volume=31&amp;pages=279-293&amp;publication_year=1990&amp;" 
+data-location="same-new-window" class="js-externallink" >[Google Scholar]</a>
+</li>
+<li class="refbody" id="ref-A21-2801-bib9">
+<xhtml:span xmlns:xhtml="http://www.w3.org/1999/xhtml" xml:lang="en"><span class="reference-person-group-apa">Bayer, Kevin</span><div class="refline singleref">, [<span class="reference-year-apa">1999</span>]. When is nearest neighbors meaningful?, <span class="reference-source-apa">Database Theory—ICDT’99</span>, 217–235.</div>
+</xhtml:span>
+<a href="http://scholar.google.com/scholar_lookup?title=Database+Theory%E2%80%94ICDT%E2%80%9999&amp;author=Kevin+Bayer&amp;publication_year=1999&amp;" 
+data-location="same-new-window" class="js-externallink" >[Google Scholar]</a>
+</li>
+<li class="refbody" id="ref-A21-2801-bib10">
+<xhtml:span xmlns:xhtml="http://www.w3.org/1999/xhtml" xml:lang="en"><span class="reference-person-group-apa">Calderon-Macias, C., Sen, M.K. &amp; Stoffa, P.L.</span><div class="refline singleref">, [<span class="reference-year-apa">2000</span>]. Artificial neural networks for parameter estimation in geophysics, <span class="reference-source-apa">Geophys. Prospect.</span>, 48, 21–47.</div>
+</xhtml:span>
+<a href="http://scholar.google.com/scholar_lookup?title=Artificial+neural+networks+for+parameter+estimation+in+geophysics&amp;author=C.+Calderon-Macias&amp;author=M.K.+Sen&amp;author=P.L.+Stoffa&amp;journal=Geophys.+Prospect.&amp;volume=48&amp;pages=21-47&amp;publication_year=2000&amp;" 
+data-location="same-new-window" class="js-externallink" >[Google Scholar]</a>
+</li>
+<li class="refbody" id="ref-A21-2801-bib11">
+<xhtml:span xmlns:xhtml="http://www.w3.org/1999/xhtml" xml:lang="en"><span class="reference-person-group-apa">Altman, Naomi S.</span><div class="refline singleref">, [<span class="reference-year-apa">2000</span>]. An introduction to kernel and nearest-neighbors nonparametric regression, <span class="reference-source-apa">The American Statistician</span>, 46, 175–185.</div>
+</xhtml:span>
+<a href="http://scholar.google.com/scholar_lookup?title=An+introduction+to+kernel+and+nearest-neighbors+nonparametric+regression&amp;author=Naomi+S.+Altman&amp;journal=The+American+Statistician&amp;volume=46&amp;pages=175-185&amp;publication_year=2000&amp;" 
+data-location="same-new-window" class="js-externallink" >[Google Scholar]</a>
+</ol>
+</div>
+</div><div id="cited" class="citations hidden-js-div tabbedsection tab-pane"><div class="hiddenjsdiv" id="itemIdForCitations" data-doi="10.3997/2214-4609.202112801">/content/papers/10.3997/2214-4609.202112801</div><img class="citingArticlesLoading" src="/images/jp/spinner.gif" alt="Loading" /><div id="citationContent"></div></div><div class="hiddenjsdiv itemmetadata">
+<div class="metadata_title">Inversion of Magnetic Anomaly using Machine Learning Regression Techniques along with PSO</div>
+<div class="metadata_citation">
+<span>Conference Proceedings <span class="citationvolume">2021</span></span><span>, 1</span><span> (2021)</span><span>; <a href="https://doi.org/10.3997/2214-4609.202112801" rel="external" class="externallink">https://doi.org/10.3997/2214-4609.202112801</a></span></div>
+<div class="metadata_itemWebId">/content/papers/10.3997/2214-4609.202112801</div>
+</div>
+<div id="dataandmedia" class="dataandmedia tabbedsection hidden-js-div tab-pane"data-fullTexturl=""data-fulltextexpandlinktext="Toggle display:"data-hideinlinetablesbydefault="false"><div id="figuredialog"></div><div id="tabledialog"></div><div id="videodialog" class="hide"></div><div id="hiddenDataMediaWebid" class="hiddenjsdiv">/content/papers/10.3997/2214-4609.202112801</div><div class="itemDataMediaLoading"><img src="/images/jp/spinner.gif" alt="Loading" /><p>Data &amp; Media loading...</p></div><div id="datamediacontent"></div></div></section><div class="clearfix"></div><div class="bottom-side-nav"><ul class="list-inline"></ul></div><div class="mostreadcontainer panel panel-default"style="display: none;"><div class="panel-heading"><h3 class="panel-title">Most Read This Month</h3></div><div class="panel-body"><div id="hiddenmostviewedtype" class="hiddenjsdiv hidden-js-div">Article</div>
+<div id="hiddenmostviewedparent" class="hiddenjsdiv hidden-js-div"></div>
+<div id="hiddenmostviewedparenttype" class="hiddenjsdiv hidden-js-div">Journal</div>
+<div id="hiddenmostviewednumber" class="hiddenjsdiv hidden-js-div">5</div>
+<div id="hiddenmostviewednumbershown" class="hiddenjsdiv hidden-js-div">3</div>
+<div id="hiddenmostviewedemptymessage" class="hiddenjsdiv hidden-js-div">true</div>
+<div id="hiddenmostviewedlanguage" class="hiddenjsdiv hidden-js-div">en</div>
+<img class="mostviewedloading" src="/images/jp/spinner.gif" alt="Loading"/>
+</div></div><div class="mostcitedcontainer panel panel-default "><div class="panel-heading"><h2 class="panel-title">Most Cited This Month<span class="rssicon">
+<a href="/rss/mostcitedarticles?fmt=rss" 
+class="rssiconheader rssFeed externallink" 
+title="Subscribe to most Cited RSS feed">
+<i class="fa fa-rss"></i>
+<span class="sr-only">Most Cited RSS feed</span>
+</a>
+</span>
+</h2></div><div id="mostcited"><ul class="separated-list list-unstyled"><li class=""><div class="table-cell meta-data-container pd-remove"><ul class="list-unstyled browse-item js-browse-item"><li><div class="articleMetadata js-articleMetadata"><div class="articleMetadataInner js-articleMetadataInner"><h3 class="accessIcons js-accessIcons"><span class="articleTitle js-articleTitle title"><a href="/content/journals/10.1071/EG03182" data-itemId="/content/journals/10.1071/EG03182" dir="auto" class="js-access-to-be-determined"> A comparison of smooth and blocky inversion methods in 2D electrical imaging surveys</a></span></h3><div class="authorsWithPopup"><div
+><span class="meta-key authors_label ">
+<strong>Authors</strong>
+</span>
+<span class="meta-value authors ">
+<span class="author-list__item "><a href="/search?value1=M.H.+Loke&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">M.H. Loke</a></span><span class="author-list__item ">,<a href="/search?value1=Ian+Acworth&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Ian Acworth</a></span><span class="author-list__item author-list__item--last">&nbsp;and<a href="/search?value1=Torleif+Dahlin&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Torleif Dahlin</a></span></span></div>
+</div></div></div></li></ul></div></li><li class=""><div class="table-cell meta-data-container pd-remove"><ul class="list-unstyled browse-item js-browse-item"><li><div class="articleMetadata js-articleMetadata"><div class="articleMetadataInner js-articleMetadataInner"><h3 class="accessIcons js-accessIcons"><span class="articleTitle js-articleTitle title"><a href="/content/journals/10.1071/EG06102" data-itemId="/content/journals/10.1071/EG06102" dir="auto" class="js-access-to-be-determined"> Reverse-Time Migration using the Poynting Vector</a></span></h3><div class="authorsWithPopup"><div
+><span class="meta-key authors_label ">
+<strong>Authors</strong>
+</span>
+<span class="meta-value authors ">
+<span class="author-list__item "><a href="/search?value1=Kwangjin+Yoon&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Kwangjin Yoon</a></span><span class="author-list__item author-list__item--last">&nbsp;and<a href="/search?value1=Kurt+J.+Marfurt&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Kurt J. Marfurt</a></span></span></div>
+</div></div></div></li></ul></div></li><li class=""><div class="table-cell meta-data-container pd-remove"><ul class="list-unstyled browse-item js-browse-item"><li><div class="articleMetadata js-articleMetadata"><div class="articleMetadataInner js-articleMetadataInner"><h3 class="accessIcons js-accessIcons"><span class="articleTitle js-articleTitle title"><a href="/content/journals/10.1071/EG04194" data-itemId="/content/journals/10.1071/EG04194" dir="auto" class="js-access-to-be-determined"> SkyTEM–a New High-resolution Helicopter Transient Electromagnetic System</a></span></h3><div class="authorsWithPopup"><div
+><span class="meta-key authors_label ">
+<strong>Authors</strong>
+</span>
+<span class="meta-value authors ">
+<span class="author-list__item "><a href="/search?value1=K.+I.+Sorensen&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">K. I. Sorensen</a></span><span class="author-list__item author-list__item--last">&nbsp;and<a href="/search?value1=Esben+Auken&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Esben Auken</a></span></span></div>
+</div></div></div></li></ul></div></li><li class="hiddenjsdiv"><div class="table-cell meta-data-container pd-remove"><ul class="list-unstyled browse-item js-browse-item"><li><div class="articleMetadata js-articleMetadata"><div class="articleMetadataInner js-articleMetadataInner"><h3 class="accessIcons js-accessIcons"><span class="articleTitle js-articleTitle title"><a href="/content/journals/10.1071/EG13097" data-itemId="/content/journals/10.1071/EG13097" dir="auto" class="js-access-to-be-determined"> An overview of a highly versatile forward and stable inverse algorithm for airborne, ground-based and borehole electromagnetic and electric data</a></span></h3><div class="authorsWithPopup"><div
+><span class="meta-key authors_label ">
+<strong>Authors</strong>
+</span>
+<span class="meta-value authors ">
+<span class="author-list__item "><a href="/search?value1=Esben+Auken&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Esben Auken</a></span><span class="author-list__item ">,<a href="/search?value1=Anders+Vest+Christiansen&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Anders Vest Christiansen</a></span><span class="author-list__item ">,<a href="/search?value1=Casper+Kirkegaard&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Casper Kirkegaard</a></span><span class="author-list__item ">,<a href="/search?value1=Gianluca+Fiandaca&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Gianluca Fiandaca</a></span><span class="author-list__item ">,<a href="/search?value1=Cyril+Schamper&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Cyril Schamper</a></span><span class="author-list__item ">,<a href="/search?value1=Ahmad+Ali+Behroozmand&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Ahmad Ali Behroozmand</a></span><span class="author-list__item ">,<a href="/search?value1=Andrew+Binley&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Andrew Binley</a></span><span class="author-list__item ">,<a href="/search?value1=Emil+Nielsen&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Emil Nielsen</a></span><span class="author-list__item ">,<a href="/search?value1=Flemming+Effers%C3%B8&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Flemming Effersø</a></span><span class="author-list__item ">,<a href="/search?value1=Niels+B%C3%B8ie+Christensen&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Niels Bøie Christensen</a></span><span class="author-list__item ">,<a href="/search?value1=Kurt+S%C3%B8rensen&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Kurt Sørensen</a></span><span class="author-list__item ">,<a href="/search?value1=Nikolaj+Foged&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Nikolaj Foged</a></span><span class="author-list__item author-list__item--last">&nbsp;and<a href="/search?value1=Giulio+Vignoli&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Giulio Vignoli</a></span></span></div>
+</div></div></div></li></ul></div></li><li class="hiddenjsdiv"><div class="table-cell meta-data-container pd-remove"><ul class="list-unstyled browse-item js-browse-item"><li><div class="articleMetadata js-articleMetadata"><div class="articleMetadataInner js-articleMetadataInner"><h3 class="accessIcons js-accessIcons"><span class="articleTitle js-articleTitle title"><a href="/content/journals/10.1071/EG05341" data-itemId="/content/journals/10.1071/EG05341" dir="auto" class="js-access-to-be-determined"> The Fast Marching Method: An Effective Tool for Tomographic Imaging and Tracking Multiple Phases in Complex Layered Media</a></span></h3><div class="authorsWithPopup"><div
+><span class="meta-key authors_label ">
+<strong>Authors</strong>
+</span>
+<span class="meta-value authors ">
+<span class="author-list__item "><a href="/search?value1=Nicholas+Rawlinson&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Nicholas Rawlinson</a></span><span class="author-list__item author-list__item--last">&nbsp;and<a href="/search?value1=Malcolm+Sambridge&option1=author&noRedirect=true&sortField=prism_publicationDate&sortDescending=true" class="nonDisambigAuthorLink">Malcolm Sambridge</a></span></span></div>
+</div></div></div></li></ul></div></li><li><a href="#" class="moreLink std-display" >
+<i class="fa fa-plus"></i> More
+</a> 
+<a href="#" class="lessLink std-display" >
+<i class="fa fa-minus"></i> Less
+</a>
+</li></ul><form class="ahahTocArticles"><input type="hidden" name="articleIds" value="http://instance.metastore.ingenta.com/content/journals/10.1071/EG03182,http://instance.metastore.ingenta.com/content/journals/10.1071/EG06102,http://instance.metastore.ingenta.com/content/journals/10.1071/EG04194,http://instance.metastore.ingenta.com/content/journals/10.1071/EG13097,http://instance.metastore.ingenta.com/content/journals/10.1071/EG05341" /><input type="hidden" name="fmt" value="ahah" /><input type="hidden" name="ahahcontent" value="toc" /></form></div></div></main><asideclass="col-xs-12 col-sm-12 col-md-3 footer-sidebar left-padding non-printed-section"><div class="icon-key panel panel-default sidebar-pub2web-element">
+<div class="panel-heading">
+<h3 class="panel-title"> <i class="fa fa-key"></i><span id="access_key_label"> Legend</span></h3>
+</div>
+<div class="panel-body">
+<ul class="list-unstyled">
+<li class="icon-key__item access_icon_sc_wrapper">
+<span class="access_icon_s keyicon" aria-labelledby="access_key_label subscribed_access_label">s</span>
+<span id="subscribed_access_label">Titles subscribed to</span>
+</li>
+<li class="icon-key__item access_icon_oa_wrapper">
+<span class="access_icon_oa keyicon" aria-labelledby="access_key_label open_access_label">oa</span>
+<span id="open_access_label">Open Access content</span>
+</li>
+<li class="icon-key__item access_icon_ft_wrapper">
+<span class="access_icon_ft keyicon" aria-labelledby="access_key_label trial_access_label">t</span>
+<span id="trial_access_label">Free Trial content</span>
+</li>
+<li class="icon-key__item access_icon_fc_wrapper">
+<span class="access_icon_fc keyicon" aria-labelledby="access_key_label free_access_label">f</span>
+<span id="free_access_label">Free content</span>
+</li>
+</ul>
+</div>
+</div><div class="sidebar-pub2web-element editable-snippet-image default-pane panel panel-default js-advert-editable-container"><div class="panel-heading"><div class="fr-view"><div id="addSlot1" style="height:600px; width:160px;">
+<script>
+googletag.cmd.push(function()
+{
+googletag.defineSlot('/20287594127/EarthDoc_Skyscraper', [260, 600], 'addSlot1')
+.addService(googletag.pubads())
+.setTargeting("Pub_code", "asnr");
+googletag.enableServices();
+googletag.display('addSlot1');
+});
+</script>
+</div></div></div><div class="panel-body"><div class="fr-view"><p>
+<a href="/content/books"><img src="https://eage.org/wp-content/uploads/2022/07/22899-Bookshop-banner-for-Earthdoc.png" style="display: block; vertical-align: top; margin: 5px auto; text-align: center;"></a></p></div></div></div> <div class="editable-snippet-image default-pane sidebar-pub2web-element panel panel-default js-advert-editable-container"><div class="panel-heading"><div class="fr-view"></div></div><div class="panel-body"><div class="fr-view"><style>
+iframe[name$="EarthDoc_Leaderboard_0"] {
+width: 100%;
+max-height: 35vw;
+}
+.cycle-slideshow .cycle-slideshow__slide > img {
+min-width: unset;
+max-width: unset;
+width: 100%;
+margin: unset;
+}
+.c-purchase .c-purchase__form {
+width: 100%;
+}
+.c-purchase .c-purchase__type {
+min-height: 270px;
+}
+a[href="/content/publications"] {
+display: none
+}
+a[href="/serial/2214-4609"] {
+display: none
+}
+a[href="/content/serial/2214-4609"] {
+display: inline-block;
+overflow: hidden;
+width: 0;
+height: 0;
+margin-right: -6px;
+}
+#wayfForm {
+display: none
+}
+.wayfAthens {
+display: none
+}
+@media (max-width: 767px) {
+.right-title-box {
+position: unset;
+}
+}
+.articleSection table {border: 0;
+display: inline-table;
+vertical-align: bottom;}
+</style>
+<!--<iframe src="https://docs.google.com/forms/d/e/1FAIpQLSdsL1bYF8URdW65fzQwUeBL1C-Dncji-yMYzVEzO4SET37ujQ/viewform?embedded=true" width="100%" height="auto" frameborder="0">Loading subscribe form…</iframe>
+<script>
+window.fwSettings = {
+'widget_id': 25000000093
+};
+! function()
+{
+if ("function" != typeof window.FreshworksWidget)
+{
+var n = function()
+{
+n.q.push(arguments)
+};
+n.q = [], window.FreshworksWidget = n
+}
+}()
+</script>
+<script type="text/javascript" src="https://widget.freshworks.com/widgets/25000000093.js" async="" defer=""></script>
+--></div></div></div></aside></div><footer class="container-fluid footer non-printed-section footer--skinny" id="footer" ><div class="container">
+<div class="backToTopLink">
+<a href="#header" title="Back to top" 
+data-toggle="tooltip" data-placement="left" class="btn-back-top js-back-top" ><i class="fa fa-arrow-up" aria-hidden="true"></i><span class="sr-only">Back to top</span></a>
+</div>
+<div class="row">
+<div class="container">
+<!-- <h3>About Us</h3> -->
+<div class="fr-view"><div class="footer-menu"><ul><li>Website © 2025 EAGE All Rights reserved</li><li><a href="https://eage.org/about_eage/mission-and-objectives/" rel="noopener noreferrer" target="_blank">About EAGE</a></li><li><a href="/terms-conditions" tabindex="-1" title="Privacy Policy">Terms and Conditions&nbsp;</a></li><li><a href="https://www.earthdoc.org/legal">Legal information</a></li><li><a href="/sitemap" tabindex="-1" title="Sitemap">Sitemap</a></li></ul></div></div>
+<img data-toggle="tooltip" data-placement="top" data-trigger="click" title="European Association of Geoscientists and Engineers" src="/images/hybrid/logo/EAGE_white_logo.svg" alt="European Association of Geoscientists and Engineers" class="logo-footer fr-fic fr-dii">&nbsp; 
+</div>
+</div>
+</div> 
+</footer></div><div class="hiddenblurbsvalues hidden-js-div"><div id="required_field">This is a required field</div><div id="valid_email_address">Please enter a valid email address</div><div id="makelivesuccess">Approval was a Success</div><div id="makeliveinvaliddata">Invalid data</div><div id="makeliveerror">An Error Occurred</div><div id="makelivepartialsuccess">Approval was partially successful, following selected items could not be processed due to error</div></div> <form class="hidden" action="/cart/add" method="get" id="hiddenPurchaseForm"></form><form class="hidden" action="/carnet" method="post" id="hiddenCarnetForm"></form><div class="siqPageTitle hidden">Earthdoc:</div><div class="siqItemId hidden">http://instance.metastore.ingenta.com/content/papers/10.3997/2214-4609.202112801</div><div class="siqDoi hidden">10.3997/2214-4609.202112801</div><div class="siqPub2webEventType hidden">SEARCH_EXPAND_ITEM</div><script type="text/x-mathjax-config">MathJax.Hub.Config({CommonHTML: { linebreaks: { automatic: true } },"HTML-CSS": { linebreaks: { automatic: true } },SVG: { linebreaks: { automatic: true } }});</script><script type="text/javascript">var script = document.createElement('script');script.type = 'text/javascript';script.async = true;script.src = '//cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-AMS-MML_HTMLorMML';document.getElementsByTagName('head')[0].appendChild(script);</script> <!--[if lt IE 7]><script src="/js/v/12.1.1/jp/IE7.js" ></script><![endif]--><!--[if lte IE 9]><script src="/js/v/12.1.1/hybrid/placeholder.js" ></script><![endif]--><script src="/js/v/12.1.1/jp/jquery.form.js" ></script> <script src="/js/v/12.1.1/jp/jquery.validate.js" ></script><script src="/common/v/12.1.1/js/plugins.js?1"></script><script src="/common/v/12.1.1/js/sitejp.js"></script><script src="/common/v/12.1.1/js/site_common.js"></script><script src="/js/v/12.1.1/jp/platform.js" ></script><script src="/js/v/12.1.1/hybrid/site.js" ></script><script src="/common/v/12.1.1/js/contentpreview/preview.js" ></script><script src="/common/v/12.1.1/js/jquery-plugins/jquery.horiz-bar-graph.js" ></script><script src="/common/v/12.1.1/js/ecommerceicons.js" ></script><script src="/common/v/12.1.1/js/toc_ecommerceicons.js" ></script><script src="/common/v/12.1.1/js/moreLikeThis.js" ></script><script src="/common/v/12.1.1/js/fulltext-html_media-objects.js" ></script><script src="/common/v/12.1.1/js/responsive-tabs.js"></script><script async src="https://www.googletagmanager.com/gtag/js?id=UA-6893078-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'UA-6893078-1');
+</script>
+<div class="c-purchase modal fade bs-example-modal-lg" id="bs-example-modal-lg0" tabindex="-1" role="dialog" data-popup-enabled="true">
+<div class="modal-dialog" role="document">
+<div class="modal-content">
+<div class="modal-header">
+<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+<h2 class="modal-title">Inversion of Magnetic Anomaly using Machine Learning Regression Techniques along with PSO</h2>
+</div>
+<div class="modal-body clearfix">
+<p>
+<strong>Publication Date: </strong>
+<time class="c-purchase__publish-date" datetime="Mon Oct 18 00:00:00 UTC 2021" >18 Oct 2021</time>
+</p>
+<a class="c-purchase__doi" href="https://doi.org/10.3997/2214-4609.202112801" target="_blank">https://doi.org/10.3997/2214-4609.202112801</a>
+<div class="c-purchase-items clearfix">
+<div class="c-purchase__type"><form method="post" action="/cart/add.action" class="c-purchase__form js-purchase-form"><div class="tokenCSRF_HiddenValue hidden"><div class="hidden" id="timer_id">446057294</div></div><input type="hidden" name="itemId" value="http://instance.metastore.ingenta.com/content/papers/10.3997/2214-4609.202112801" /><input type="hidden" name="terms" value="download" /><h4 class="c-purchase__type-title js-purchase-type">Online Option</h4><p class="c-purchase__type-description ">Through EAGE membership and <a href="https://eage.org/membership/recognition-programme/">extended archive access</a>&nbsp;(journals and proceedings)<br><a href="https://www.earthdoc.org/openidconnect/login?signInTarget=%2F" style="color: #fff;" target="_self">&nbsp;<div style="background-color: rgb(249, 155, 44); width: fit-content; align-self: center; display: inline-block; cursor: pointer; border: 1px solid transparent; padding: 6px 12px; font-size: 13px; border-radius: 4px; text-align: center;">My EAGE login</div>&nbsp;</a>&nbsp; &nbsp;<a href="https://eage.eventsair.com/eage-membership-module/extra" style="color: #fff;" target="_blank">&nbsp;<div style="background-color: rgb(249, 155, 44); width: fit-content; align-self: center; display: inline-block; cursor: pointer; border: 1px solid transparent; padding: 6px 12px; font-size: 13px; border-radius: 4px; text-align: center;">Extend subscription</div></a><br>&nbsp;or Get immediate access to your online copy in Full Text online and PDF / ePUB</p><div class="c-purchase__type-price"><span class="c-purchase__type-price-label">Price:</span><span class="c-purchase__type-price-amount" data-currency="EUR"><span class="js-purchase-price-with-currency ">€25.00</span></span></div><button type="submit"data-itemId="http://instance.metastore.ingenta.com/content/papers/10.3997/2214-4609.202112801"data-puchaseType="download"data-currency="EUR"data-cost="25.00"class="c-purchase__type-add-to-cart js-buy-now btn btn-default js-clickonce">Buy Online Access</button></form></div>
+</div> 
+<button type="button" class="btn btn-secondary visible-xs pull-right c-purchase__cancelbutton" data-dismiss="modal" aria-label="Close">Cancel</button> 
+</div>
+</div>
+</div>
+</div><div class="modal fade" id="myModal" tabindex="-1" role="dialog"></div><script type="application/json" class="js-hypothesis-config">{ "openSidebar": false }</script><script async src="https://hypothes.is/embed.js"></script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"dc81acdf75384e339c83f42ab24e7e39","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body></html>
