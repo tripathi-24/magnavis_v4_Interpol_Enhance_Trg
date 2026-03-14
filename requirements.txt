@@ -1,0 +1,5 @@
+# Minimal requirements for Streamlit Cloud (src/Get_Data_09Dec25.py)
+# Full environment: use requirements_feb_2025.txt locally
+streamlit>=1.28.0
+mysql-connector-python>=8.0.0
+pandas>=2.0.0
